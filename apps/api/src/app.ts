@@ -15,6 +15,7 @@ import { authRoutes, createGuards } from "./auth.js";
 import { incidentRoutes } from "./incidents.js";
 import { detectionRoutes } from "./detections.js";
 import { mapRoutes } from "./map.js";
+import { registerRequestDb, systemDb } from "./database.js";
 import { attachRealtime } from "./realtime.js";
 import type { ServerOptions } from "socket.io";
 import type { SnapshotStore } from "./snapshots.js";
@@ -97,13 +98,16 @@ export function buildApp({
     return reply.code(allOk ? 200 : 503).send(body);
   });
 
-  const guards = createGuards(db);
-  app.register(authRoutes, { db, guards, cookieSecure, sessionTtlMs, loginAttemptsPerMinute });
-  app.register(adminRoutes, { db, guards });
-  const notify = attachRealtime(app, db, realtimeAdapter);
-  app.register(incidentRoutes, { db, guards, notify });
-  app.register(mapRoutes, { db, guards });
-  app.register(detectionRoutes, { db, guards, notify, detectorToken, snapshots });
+  // Signed-in users' queries run under the restricted role (request.db); the rest use system.
+  const system = systemDb(db);
+  registerRequestDb(app, db);
+  const guards = createGuards(system);
+  app.register(authRoutes, { system, guards, cookieSecure, sessionTtlMs, loginAttemptsPerMinute });
+  app.register(adminRoutes, { guards });
+  const notify = attachRealtime(app, system, realtimeAdapter);
+  app.register(incidentRoutes, { system, guards, notify });
+  app.register(mapRoutes, { guards });
+  app.register(detectionRoutes, { system, guards, notify, detectorToken, snapshots });
 
   app.get(
     "/api/openapi.json",

@@ -1,4 +1,4 @@
-import type pg from "pg";
+import type { Queryable } from "./database.js";
 
 export interface AuditEntry {
   actorId: string | null;
@@ -8,7 +8,7 @@ export interface AuditEntry {
   metadata?: Record<string, unknown>;
 }
 
-export async function audit(db: pg.Pool | pg.PoolClient, entry: AuditEntry): Promise<void> {
+export async function audit(db: Queryable, entry: AuditEntry): Promise<void> {
   await db.query(
     `INSERT INTO audit_logs (actor_id, action, entity, entity_id, metadata)
      VALUES ($1, $2, $3, $4, $5)`,

@@ -12,7 +12,8 @@ import type pg from "pg";
 import { z } from "zod";
 import { audit } from "./audit.js";
 import type { Guards } from "./auth.js";
-import { HttpError, inTransaction, readIncident } from "./incidents.js";
+import type { Db } from "./database.js";
+import { HttpError, readIncident } from "./incidents.js";
 import type { Notifier } from "./realtime.js";
 import type { SnapshotStore } from "./snapshots.js";
 
@@ -34,7 +35,8 @@ interface DetectionRow {
 const digest = (value: string) => createHash("sha256").update(value).digest();
 
 export interface DetectionRouteOptions {
-  db: pg.Pool;
+  // The login role: the detector isn't a user, so its requests run outside row level security.
+  system: Db;
   guards: Guards;
   notify: Notifier;
   detectorToken?: string;
@@ -80,7 +82,7 @@ async function attachOrRaise(client: pg.PoolClient, detection: DetectionRow, act
 }
 
 export const detectionRoutes: FastifyPluginAsyncZod<DetectionRouteOptions> = async (app, options) => {
-  const { db, guards, notify, detectorToken, snapshots } = options;
+  const { system, guards, notify, detectorToken, snapshots } = options;
   const operators = guards.requireRole("admin", "operator");
   const staff = guards.requireRole("admin", "operator", "responder");
 
@@ -127,7 +129,7 @@ export const detectionRoutes: FastifyPluginAsyncZod<DetectionRouteOptions> = asy
       if (image && !(image[0] === 0xff && image[1] === 0xd8 && image[2] === 0xff)) {
         throw new HttpError(400, "The snapshot must be a JPEG");
       }
-      const camera = await db.query("SELECT 1 FROM cameras WHERE id = $1", [cameraId]);
+      const camera = await system.query("SELECT 1 FROM cameras WHERE id = $1", [cameraId]);
       if (!camera.rowCount) throw new HttpError(422, "Unknown camera");
 
       const id = randomUUID();
@@ -138,7 +140,7 @@ export const detectionRoutes: FastifyPluginAsyncZod<DetectionRouteOptions> = asy
       }
       const alerting = confidence >= thresholds.alert;
 
-      const result = await inTransaction(db, async (client) => {
+      const result = await system.transaction(async (client) => {
         const detection: DetectionRow = { id, cameraId, incidentType, reviewStatus: "pending", incidentId: null };
         let outcome: "alerted" | "attached" | "queued" = "queued";
         if (alerting) {
@@ -175,8 +177,8 @@ export const detectionRoutes: FastifyPluginAsyncZod<DetectionRouteOptions> = asy
         querystring: z.object({ status: z.enum(["pending"]).default("pending") }),
       },
     },
-    async () => {
-      const { rows } = await db.query(
+    async (request) => {
+      const { rows } = await request.db.query(
         `SELECT ${DETECTION_COLUMNS}, cameras.name AS "cameraName", barangays.name AS "barangayName"
          FROM detections
          JOIN cameras ON cameras.id = detections.camera_id
@@ -201,7 +203,7 @@ export const detectionRoutes: FastifyPluginAsyncZod<DetectionRouteOptions> = asy
     async (request) => {
       const user = request.user!;
       const { decision } = request.body;
-      const result = await inTransaction(db, async (client) => {
+      const result = await request.db.transaction(async (client) => {
         const { rows } = await client.query<DetectionRow>(
           `SELECT ${DETECTION_COLUMNS} FROM detections WHERE id = $1 FOR UPDATE`,
           [request.params.id],
@@ -242,6 +244,7 @@ export const detectionRoutes: FastifyPluginAsyncZod<DetectionRouteOptions> = asy
     { preHandler: staff, schema: { tags: ["detections"], params: z.object({ id: z.uuid() }) } },
     async (request, reply) => {
       const user = request.user!;
+      const db = request.db;
       const { rows } = await db.query<{ snapshotPath: string | null; incidentId: string | null }>(
         `SELECT snapshot_path AS "snapshotPath", incident_id AS "incidentId" FROM detections WHERE id = $1`,
         [request.params.id],
@@ -278,7 +281,7 @@ export const detectionRoutes: FastifyPluginAsyncZod<DetectionRouteOptions> = asy
     "/api/internal/cameras",
     { onRequest: detectorOnly, schema: { tags: ["detections"], hide: true } },
     async () => {
-      const { rows } = await db.query(
+      const { rows } = await system.query(
         `SELECT id, name, stream_path AS "streamPath" FROM cameras ORDER BY name`,
       );
       return { cameras: rows };
@@ -289,7 +292,7 @@ export const detectionRoutes: FastifyPluginAsyncZod<DetectionRouteOptions> = asy
     "/api/cameras/:id/heartbeat",
     { onRequest: detectorOnly, schema: { tags: ["detections"], hide: true, params: z.object({ id: z.uuid() }) } },
     async (request, reply) => {
-      await db.query("UPDATE cameras SET last_seen_at = now() WHERE id = $1", [request.params.id]);
+      await system.query("UPDATE cameras SET last_seen_at = now() WHERE id = $1", [request.params.id]);
       return reply.code(204).send();
     },
   );

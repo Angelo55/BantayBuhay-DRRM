@@ -2,7 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import type { PublicUser, Role } from "@bantaybuhay/shared";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
-import type pg from "pg";
+import type { Db } from "./database.js";
 import { z } from "zod";
 import { audit } from "./audit.js";
 import { hashPassword, verifyPassword } from "./password.js";
@@ -21,7 +21,7 @@ export const SESSION_COOKIE = COOKIE;
 const hashToken = (token: string) => createHash("sha256").update(token).digest("hex");
 
 // The signed-in user for a session token, or null if it's unknown, expired or disabled.
-export async function findSessionUser(db: pg.Pool, token: string): Promise<PublicUser | null> {
+export async function findSessionUser(db: Db, token: string): Promise<PublicUser | null> {
   const { rows } = await db.query<PublicUser>(
     `SELECT ${USER_COLUMNS} FROM sessions
      JOIN users ON users.id = sessions.user_id
@@ -32,7 +32,7 @@ export async function findSessionUser(db: pg.Pool, token: string): Promise<Publi
   return rows[0] ?? null;
 }
 
-export function createGuards(db: pg.Pool) {
+export function createGuards(db: Db) {
   async function authenticate(request: FastifyRequest, reply: FastifyReply) {
     const token = request.cookies[COOKIE];
     if (token) request.user = await findSessionUser(db, token);
@@ -55,7 +55,8 @@ export function createGuards(db: pg.Pool) {
 export type Guards = ReturnType<typeof createGuards>;
 
 export interface AuthOptions {
-  db: pg.Pool;
+  // The login role: signing in happens before there's a user to restrict to.
+  system: Db;
   guards: Guards;
   cookieSecure: boolean;
   sessionTtlMs: number;
@@ -63,7 +64,7 @@ export interface AuthOptions {
 }
 
 export const authRoutes: FastifyPluginAsyncZod<AuthOptions> = async (app, options) => {
-  const { db, guards, cookieSecure, sessionTtlMs, loginAttemptsPerMinute } = options;
+  const { system: db, guards, cookieSecure, sessionTtlMs, loginAttemptsPerMinute } = options;
   // Checked when an email is unknown, so response time doesn't reveal which emails exist.
   const decoyHash = await hashPassword(randomBytes(16).toString("hex"));
 
@@ -128,10 +129,10 @@ export const authRoutes: FastifyPluginAsyncZod<AuthOptions> = async (app, option
     "/api/auth/logout",
     { schema: { tags: ["auth"] }, preHandler: guards.authenticate },
     async (request, reply) => {
-      await db.query("DELETE FROM sessions WHERE token_hash = $1", [
+      await request.db.query("DELETE FROM sessions WHERE token_hash = $1", [
         hashToken(request.cookies[COOKIE]!),
       ]);
-      await audit(db, { actorId: request.user!.id, action: "auth.logout" });
+      await audit(request.db, { actorId: request.user!.id, action: "auth.logout" });
       reply.clearCookie(COOKIE, { path: "/" });
       return reply.code(204).send();
     },

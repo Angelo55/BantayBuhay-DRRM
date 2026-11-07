@@ -1,16 +1,12 @@
 import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
-import type pg from "pg";
 import type { Guards } from "./auth.js";
 
-export const mapRoutes: FastifyPluginAsyncZod<{ db: pg.Pool; guards: Guards }> = async (
-  app,
-  { db, guards },
-) => {
+export const mapRoutes: FastifyPluginAsyncZod<{ guards: Guards }> = async (app, { guards }) => {
   app.get(
     "/api/barangays",
     { preHandler: guards.authenticate, schema: { tags: ["map"] } },
-    async () => {
-      const { rows } = await db.query(
+    async (request) => {
+      const { rows } = await request.db.query(
         `SELECT json_build_object(
            'type', 'FeatureCollection',
            'features', COALESCE(json_agg(json_build_object(
@@ -32,8 +28,8 @@ export const mapRoutes: FastifyPluginAsyncZod<{ db: pg.Pool; guards: Guards }> =
       preHandler: guards.requireRole("admin", "operator", "responder"),
       schema: { tags: ["map"] },
     },
-    async () => {
-      const { rows } = await db.query(
+    async (request) => {
+      const { rows } = await request.db.query(
         `SELECT cameras.id, cameras.name, cameras.is_simulated AS "isSimulated",
                 CASE WHEN cameras.last_seen_at > now() - interval '30 seconds'
                      THEN 'online' ELSE 'offline' END AS status,
@@ -49,8 +45,8 @@ export const mapRoutes: FastifyPluginAsyncZod<{ db: pg.Pool; guards: Guards }> =
   app.get(
     "/api/responders",
     { preHandler: guards.requireRole("admin", "operator"), schema: { tags: ["map"] } },
-    async () => {
-      const { rows } = await db.query(
+    async (request) => {
+      const { rows } = await request.db.query(
         `SELECT users.id, users.full_name AS "fullName", responder_profiles.unit,
                 responder_profiles.duty_status AS "dutyStatus",
                 (SELECT count(*)::int FROM assignments

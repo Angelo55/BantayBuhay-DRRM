@@ -2,7 +2,7 @@
 // It prints only pass/fail results and counts, never the connection string, password or key.
 import { TLSSocket } from "node:tls";
 import { loadConfig } from "./config.js";
-import { createPool } from "./database.js";
+import { APP_ROLE, createPool } from "./database.js";
 
 function report(ok: boolean, label: string, detail = "") {
   console.log(`${ok ? "PASS" : "FAIL"}  ${label}${detail ? `: ${detail}` : ""}`);
@@ -51,6 +51,24 @@ try {
     const row = rows[0]!;
     report(true, "PostGIS is available", row.postgis);
     report(row.barangays === 32, "Kabankalan barangays are loaded", `${row.barangays} of 32`);
+
+    // The switch every signed-in request makes. With no user identity set, the policies should
+    // hide every incident, and password hashes should be off limits entirely.
+    try {
+      await client.query(`SET ROLE ${APP_ROLE}`);
+      const visible = await client.query("SELECT count(*)::int AS n FROM incidents");
+      let hashesHidden = false;
+      try {
+        await client.query("SELECT password_hash FROM users LIMIT 1");
+      } catch {
+        hashesHidden = true;
+      }
+      report(visible.rows[0].n === 0 && hashesHidden, "Restricted role works through the pooler");
+    } catch (error) {
+      report(false, "Restricted role works through the pooler", reason(error));
+    } finally {
+      await client.query("RESET ROLE").catch(() => undefined);
+    }
   } finally {
     client.release();
   }

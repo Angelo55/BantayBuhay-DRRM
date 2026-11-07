@@ -11,6 +11,7 @@ import type pg from "pg";
 import { z } from "zod";
 import { audit } from "./audit.js";
 import type { Guards } from "./auth.js";
+import type { Db, Queryable } from "./database.js";
 import type { Notifier } from "./realtime.js";
 
 const COLUMNS = `incidents.id, incidents.incident_type AS "incidentType", incidents.severity,
@@ -46,21 +47,6 @@ export class HttpError extends Error {
   }
 }
 
-export async function inTransaction<T>(db: pg.Pool, work: (client: pg.PoolClient) => Promise<T>) {
-  const client = await db.connect();
-  try {
-    await client.query("BEGIN");
-    const result = await work(client);
-    await client.query("COMMIT");
-    return result;
-  } catch (error) {
-    await client.query("ROLLBACK");
-    throw error;
-  } finally {
-    client.release();
-  }
-}
-
 // Locks the row, so simultaneous changes to one incident happen one at a time.
 async function lockStatus(client: pg.PoolClient, id: string): Promise<IncidentStatus> {
   const { rows } = await client.query<{ status: IncidentStatus }>(
@@ -71,7 +57,7 @@ async function lockStatus(client: pg.PoolClient, id: string): Promise<IncidentSt
   return rows[0].status;
 }
 
-async function isAssigned(db: pg.Pool | pg.PoolClient, incidentId: string, responderId: string) {
+async function isAssigned(db: Queryable, incidentId: string, responderId: string) {
   const { rowCount } = await db.query(
     `SELECT 1 FROM assignments
      WHERE incident_id = $1 AND responder_id = $2 AND released_at IS NULL`,
@@ -80,13 +66,13 @@ async function isAssigned(db: pg.Pool | pg.PoolClient, incidentId: string, respo
   return rowCount !== 0;
 }
 
-export async function readIncident(db: pg.Pool | pg.PoolClient, id: string) {
+export async function readIncident(db: Queryable, id: string) {
   const { rows } = await db.query(`SELECT ${COLUMNS} FROM ${FROM} WHERE incidents.id = $1`, [id]);
   return rows[0];
 }
 
 async function changeStatus(
-  db: pg.Pool,
+  db: Db,
   user: PublicUser,
   id: string,
   to: IncidentStatus,
@@ -95,7 +81,7 @@ async function changeStatus(
   if (user.role === "responder" && !RESPONDER_MAY_SET.includes(to)) {
     throw new HttpError(403, "Only an operator can make this change");
   }
-  return inTransaction(db, async (client) => {
+  return db.transaction(async (client) => {
     const from = await lockStatus(client, id);
     if (user.role === "responder" && !(await isAssigned(client, id, user.id))) {
       // The same answer as a missing incident, so its existence isn't revealed.
@@ -118,17 +104,8 @@ async function changeStatus(
        WHERE id = $1`,
       [id, to],
     );
-    // Kept so the released responders still hear that their incident closed.
-    let released: string[] = [];
-    if (CLOSED.includes(to)) {
-      const result = await client.query<{ responderId: string }>(
-        `UPDATE assignments SET released_at = now()
-         WHERE incident_id = $1 AND released_at IS NULL
-         RETURNING responder_id AS "responderId"`,
-        [id],
-      );
-      released = result.rows.map((row) => row.responderId);
-    }
+    // Recorded before assignments are released: a responder closing their own incident loses
+    // access to it at that point.
     await client.query(
       `INSERT INTO incident_events (incident_id, actor_id, from_status, to_status, note)
        VALUES ($1, $2, $3, $4, $5)`,
@@ -141,12 +118,23 @@ async function changeStatus(
       entityId: id,
       metadata: { from, to },
     });
-    return { incident: await readIncident(client, id), released };
+    // Kept so the released responders still hear that their incident closed.
+    let released: string[] = [];
+    if (CLOSED.includes(to)) {
+      const result = await client.query<{ responderId: string }>(
+        `UPDATE assignments SET released_at = now()
+         WHERE incident_id = $1 AND released_at IS NULL
+         RETURNING responder_id AS "responderId"`,
+        [id],
+      );
+      released = result.rows.map((row) => row.responderId);
+    }
+    return { released };
   });
 }
 
-async function assignResponder(db: pg.Pool, user: PublicUser, id: string, responderId: string) {
-  return inTransaction(db, async (client) => {
+async function assignResponder(db: Db, user: PublicUser, id: string, responderId: string) {
+  return db.transaction(async (client) => {
     const status = await lockStatus(client, id);
     if (!ASSIGNABLE.includes(status)) {
       throw new HttpError(409, `Can't assign a responder while an incident is ${status}`);
@@ -179,14 +167,15 @@ async function assignResponder(db: pg.Pool, user: PublicUser, id: string, respon
 }
 
 export interface IncidentRouteOptions {
-  db: pg.Pool;
+  // The login role, for reads no single user's view covers, such as the notification payload.
+  system: Db;
   guards: Guards;
   notify: Notifier;
 }
 
 export const incidentRoutes: FastifyPluginAsyncZod<IncidentRouteOptions> = async (
   app,
-  { db, guards, notify },
+  { system, guards, notify },
 ) => {
   const operators = guards.requireRole("admin", "operator");
   const staff = guards.requireRole("admin", "operator", "responder");
@@ -216,7 +205,7 @@ export const incidentRoutes: FastifyPluginAsyncZod<IncidentRouteOptions> = async
     async (request, reply) => {
       const { incidentType, severity, description, latitude, longitude } = request.body;
       const user = request.user!;
-      const incident = await inTransaction(db, async (client) => {
+      const incident = await request.db.transaction(async (client) => {
         const { rows } = await client.query<{ id: string }>(
           `INSERT INTO incidents
              (incident_type, severity, description, location, created_by, barangay_psgc)
@@ -250,6 +239,7 @@ export const incidentRoutes: FastifyPluginAsyncZod<IncidentRouteOptions> = async
     { preHandler: staff, schema: { tags: ["incidents"] } },
     async (request) => {
       const user = request.user!;
+      const db = request.db;
       const { rows } =
         user.role === "responder"
           ? await db.query(
@@ -272,6 +262,7 @@ export const incidentRoutes: FastifyPluginAsyncZod<IncidentRouteOptions> = async
     async (request) => {
       const { id } = request.params;
       const user = request.user!;
+      const db = request.db;
       const incident = await readIncident(db, id);
       const hidden = user.role === "responder" && !(await isAssigned(db, id, user.id));
       if (!incident || hidden) throw new HttpError(404, "Incident not found");
@@ -296,13 +287,10 @@ export const incidentRoutes: FastifyPluginAsyncZod<IncidentRouteOptions> = async
     },
     async (request) => {
       const { to, note } = request.body;
-      const { incident, released } = await changeStatus(
-        db,
-        request.user!,
-        request.params.id,
-        to,
-        note,
-      );
+      const { released } = await changeStatus(request.db, request.user!, request.params.id, to, note);
+      // Read after commit on the login role: a responder who just closed the incident can no
+      // longer see it, but the response and the notification describe its final state.
+      const incident = await readIncident(system, request.params.id);
       notify.incident("incident.updated", incident, released);
       return { incident };
     },
@@ -320,7 +308,7 @@ export const incidentRoutes: FastifyPluginAsyncZod<IncidentRouteOptions> = async
     },
     async (request, reply) => {
       const { assignment, incident } = await assignResponder(
-        db,
+        request.db,
         request.user!,
         request.params.id,
         request.body.responderId,
@@ -336,6 +324,7 @@ export const incidentRoutes: FastifyPluginAsyncZod<IncidentRouteOptions> = async
     async (request) => {
       const { id } = request.params;
       const user = request.user!;
+      const db = request.db;
       // Only the first acknowledgement is recorded; later ones change nothing.
       const { rowCount } = await db.query(
         `UPDATE incidents SET acknowledged_at = now(), acknowledged_by = $2

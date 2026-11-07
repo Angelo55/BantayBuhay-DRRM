@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import type pg from "pg";
+import type { Db } from "./database.js";
 import { Server, type ServerOptions } from "socket.io";
 import { findSessionUser, SESSION_COOKIE } from "./auth.js";
 
@@ -19,7 +19,7 @@ export interface Notifier {
 
 export function attachRealtime(
   app: FastifyInstance,
-  db: pg.Pool,
+  db: Db,
   adapter?: ServerOptions["adapter"],
 ): Notifier {
   const io = new Server(app.server, { path: "/socket.io", serveClient: false, adapter });
