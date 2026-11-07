@@ -1,6 +1,6 @@
 # Infrastructure proposal
 
-**Status: approved on 2026-11-07.** Nothing here has been provisioned yet. Region: Singapore (`ap-southeast-1`). Budget: $149 in AWS credit, to be confirmed on the new account. Domain: none yet.
+**Status: approved on 2026-11-07.** Nothing here has been provisioned yet. Region: Singapore (`ap-southeast-1`). Budget: $149 in AWS credit. Domain: none yet.
 
 ## Recommended stack
 
@@ -332,7 +332,7 @@ Prices are AWS on-demand Linux in Singapore (`ap-southeast-1`), from AWS's publi
 
 **How to decide:** run a one-hour benchmark on `c7i.2xlarge`, for about $0.41 plus a little storage. You've approved up to $5, which is about 12 hours. The target is 4 simulated cameras at 2 fps each, or 8 inferences per second. Move to Option B only if that fails.
 
-**Limits on the first AWS account, checked 2026-11-07.** The project is moving to another account, and these settings are per account, so they must be rechecked there:
+**Account limits, checked 2026-11-07:**
 
 - **GPU quota is 0 vCPUs in Singapore,** so `g4dn.xlarge` can't launch until AWS approves an increase. Requesting one costs nothing, but approval can take time.
 - **Standard quota is 8 vCPUs.** A `c7i.2xlarge` uses all 8, so it can't run alongside another instance. Running a `t3.large` with it would need an increase to at least 10.
@@ -353,7 +353,7 @@ Prices are AWS on-demand Linux in Singapore (`ap-southeast-1`), from AWS's publi
 
 AWS reports that `g5.xlarge` and `g6.xlarge` aren't offered in Singapore, so `g4dn.xlarge` is the GPU option there.
 
-**The first account's instance wasn't suitable.** It's a stopped `t3.medium` (2 vCPU, 4 GB) named for the PESO project. It's too small for this stack, and medical data shouldn't share a host with another project. Avoid burstable `t3` instances for continuous inference, because they exhaust CPU credits. While stopped, its storage and Elastic IP still cost a little.
+**The existing instance isn't suitable.** It's a stopped `t3.medium` (2 vCPU, 4 GB) named for the PESO project. It's too small for this stack, and medical data shouldn't share a host with another project. If it's started, it also takes 2 of the account's 8 standard vCPUs. Avoid burstable `t3` instances for continuous inference, because they exhaust CPU credits. While stopped, its storage and Elastic IP still cost a little.
 
 ### Database
 
