@@ -17,6 +17,7 @@ import { detectionRoutes } from "./detections.js";
 import { mapRoutes } from "./map.js";
 import { attachRealtime } from "./realtime.js";
 import type { ServerOptions } from "socket.io";
+import type { SnapshotStore } from "./snapshots.js";
 
 export type HealthCheck = () => Promise<unknown>;
 
@@ -31,7 +32,7 @@ export interface AppOptions {
   // Shares live updates across API instances, for example during a blue/green deploy.
   realtimeAdapter?: ServerOptions["adapter"];
   detectorToken?: string;
-  snapshotDir?: string;
+  snapshots?: SnapshotStore;
 }
 
 const TWELVE_HOURS_MS = 12 * 60 * 60 * 1000;
@@ -46,7 +47,7 @@ export function buildApp({
   loginAttemptsPerMinute = 10,
   realtimeAdapter,
   detectorToken,
-  snapshotDir,
+  snapshots,
 }: AppOptions) {
   // Nginx is the only route in, so the address it forwards can be trusted.
   const app = Fastify({ logger, trustProxy: true }).withTypeProvider<ZodTypeProvider>();
@@ -102,7 +103,7 @@ export function buildApp({
   const notify = attachRealtime(app, db, realtimeAdapter);
   app.register(incidentRoutes, { db, guards, notify });
   app.register(mapRoutes, { db, guards });
-  app.register(detectionRoutes, { db, guards, notify, detectorToken, snapshotDir });
+  app.register(detectionRoutes, { db, guards, notify, detectorToken, snapshots });
 
   app.get(
     "/api/openapi.json",

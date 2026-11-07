@@ -5,6 +5,7 @@ import type { Role } from "@bantaybuhay/shared";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { buildApp } from "./app.js";
 import { seed } from "./seed.js";
+import { folderStore } from "./snapshots.js";
 import { createUser, PASSWORD, resetDb, testPool } from "./test-support/db.js";
 
 const db = testPool();
@@ -14,7 +15,7 @@ const app = buildApp({
   db,
   loginAttemptsPerMinute: 1000,
   detectorToken: DETECTOR_TOKEN,
-  snapshotDir: mkdtempSync(join(tmpdir(), "bb-snapshots-")),
+  snapshots: folderStore(mkdtempSync(join(tmpdir(), "bb-snapshots-"))),
 });
 
 // The smallest valid JPEG header and end markers, enough to pass the type check.

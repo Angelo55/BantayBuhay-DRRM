@@ -1,47 +1,40 @@
-import { createAdapter } from "@socket.io/redis-adapter";
-import { Redis } from "ioredis";
+import { readFileSync } from "node:fs";
 import pg from "pg";
 import { buildApp } from "./app.js";
 import { loadConfig } from "./config.js";
+import { snapshotStoreFor } from "./snapshots.js";
 
 const config = loadConfig(process.env);
 
 const pool = new pg.Pool({
   connectionString: config.databaseUrl,
-  connectionTimeoutMillis: 2000,
-});
-const redis = new Redis(config.redisUrl, {
-  maxRetriesPerRequest: 1,
-  enableOfflineQueue: false,
+  connectionTimeoutMillis: 5000,
+  // Supabase's free pooler allows few connections; one API process needs only a handful.
+  max: 5,
+  // Supabase signs its database certificates with its own CA. With the CA file, the connection
+  // is encrypted and the server is verified; without it (local test database), plain TCP.
+  ssl: config.databaseCaFile ? { ca: readFileSync(config.databaseCaFile, "utf8") } : undefined,
 });
 
-// Live updates use their own connections, which queue commands while reconnecting.
-const pubClient = new Redis(config.redisUrl);
-const subClient = pubClient.duplicate();
-
+// One API process, so live updates use Socket.IO's built-in in-memory adapter. Running more than
+// one process would need a shared adapter again.
 const app = buildApp({
   logger: true,
   db: pool,
   cookieSecure: config.cookieSecure,
   detectorToken: config.detectorToken,
-  snapshotDir: config.snapshotDir,
-  realtimeAdapter: createAdapter(pubClient, subClient),
+  snapshots: snapshotStoreFor(config.snapshots),
   checks: {
     // PostGIS_Version also proves the spatial extension is available.
     postgres: () => pool.query("SELECT PostGIS_Version()"),
-    redis: () => redis.ping(),
   },
 });
 
 pool.on("error", (error) => app.log.error({ err: error }, "postgres pool error"));
-for (const client of [redis, pubClient, subClient]) {
-  client.on("error", (error) => app.log.error({ err: error }, "redis connection error"));
-}
 
 async function shutdown() {
   await app.close();
   await pool.end();
-  for (const client of [redis, pubClient, subClient]) client.disconnect();
 }
 
 for (const signal of ["SIGTERM", "SIGINT"] as const) {

@@ -1,6 +1,4 @@
 import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { join } from "node:path";
 import {
   DETECTION_SEVERITY,
   DETECTION_THRESHOLDS,
@@ -16,6 +14,7 @@ import { audit } from "./audit.js";
 import type { Guards } from "./auth.js";
 import { HttpError, inTransaction, readIncident } from "./incidents.js";
 import type { Notifier } from "./realtime.js";
+import type { SnapshotStore } from "./snapshots.js";
 
 const MAX_SNAPSHOT_BYTES = 512 * 1024;
 const DETECTION_COLUMNS = `detections.id, detections.camera_id AS "cameraId",
@@ -39,8 +38,8 @@ export interface DetectionRouteOptions {
   guards: Guards;
   notify: Notifier;
   detectorToken?: string;
-  // Where snapshots are written. Without it, detections that include a snapshot are refused.
-  snapshotDir?: string;
+  // Where snapshots are kept. Without it, detections that include a snapshot are refused.
+  snapshots?: SnapshotStore;
 }
 
 // Joins the open incident of the same type from the same camera, or raises a new one.
@@ -81,7 +80,7 @@ async function attachOrRaise(client: pg.PoolClient, detection: DetectionRow, act
 }
 
 export const detectionRoutes: FastifyPluginAsyncZod<DetectionRouteOptions> = async (app, options) => {
-  const { db, guards, notify, detectorToken, snapshotDir } = options;
+  const { db, guards, notify, detectorToken, snapshots } = options;
   const operators = guards.requireRole("admin", "operator");
   const staff = guards.requireRole("admin", "operator", "responder");
 
@@ -134,10 +133,8 @@ export const detectionRoutes: FastifyPluginAsyncZod<DetectionRouteOptions> = asy
       const id = randomUUID();
       const snapshotPath = image ? `${id}.jpg` : null;
       if (image) {
-        if (!snapshotDir) throw new HttpError(503, "Snapshot storage isn't configured");
-        // Created on first use, so starting the API never touches the filesystem.
-        await mkdir(snapshotDir, { recursive: true });
-        await writeFile(join(snapshotDir, snapshotPath!), image);
+        if (!snapshots) throw new HttpError(503, "Snapshot storage isn't configured");
+        await snapshots.save(snapshotPath!, image);
       }
       const alerting = confidence >= thresholds.alert;
 
@@ -262,8 +259,8 @@ export const detectionRoutes: FastifyPluginAsyncZod<DetectionRouteOptions> = asy
       }
       if (!allowed) throw new HttpError(404, "Snapshot not found");
 
-      if (!snapshotDir) throw new HttpError(404, "Snapshot not found");
-      const image = await readFile(join(snapshotDir, found!.snapshotPath!));
+      const image = snapshots ? await snapshots.read(found!.snapshotPath!) : null;
+      if (!image) throw new HttpError(404, "Snapshot not found");
       await audit(db, {
         actorId: user.id,
         action: "detection.snapshot_viewed",

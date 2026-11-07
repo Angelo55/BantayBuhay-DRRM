@@ -25,26 +25,26 @@ describe("GET /api/healthz", () => {
 
 describe("GET /api/readyz", () => {
   it("is ready when every dependency responds", async () => {
-    const app = buildApp({ checks: { postgres: healthy, redis: healthy } });
+    const app = buildApp({ checks: { postgres: healthy, storage: healthy } });
 
     const response = await app.inject({ method: "GET", url: "/api/readyz" });
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
       status: "ready",
-      checks: { postgres: "ok", redis: "ok" },
+      checks: { postgres: "ok", storage: "ok" },
     });
   });
 
   it("returns 503 and names the dependency that failed", async () => {
-    const app = buildApp({ checks: { postgres: failing, redis: healthy } });
+    const app = buildApp({ checks: { postgres: failing, storage: healthy } });
 
     const response = await app.inject({ method: "GET", url: "/api/readyz" });
 
     expect(response.statusCode).toBe(503);
     expect(response.json()).toEqual({
       status: "not_ready",
-      checks: { postgres: "down", redis: "ok" },
+      checks: { postgres: "down", storage: "ok" },
     });
   });
 

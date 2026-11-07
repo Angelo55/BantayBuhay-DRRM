@@ -41,3 +41,6 @@ snapshots/
 *.log
 .DS_Store
 Thumbs.db
+
+# Native tools downloaded by scripts (test database binaries).
+.local/
