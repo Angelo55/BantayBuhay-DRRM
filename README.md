@@ -21,7 +21,13 @@ npm run setup
 Setup builds the shared package, creates `apps/api/.env` from [the template](apps/api/.env.example), creates the detection service's Python environment, downloads and checks the detection model, and downloads the test database. Then fill in `apps/api/.env` (the template says where each value comes from) and check it:
 
 ```bash
-npm run db:check -w apps/api
+npm run db:check
+```
+
+To create the 20 fictional test accounts (2 admins, 5 DRRM operators, 3 responders, 10 civilians) and the 6 simulated cameras, if the database has no users yet. Passwords go to the git-ignored `seed-credentials.local.json` and are never printed:
+
+```bash
+npm run db:seed
 ```
 
 **Start the app** (API and web), then open <http://127.0.0.1:5173>:
@@ -53,6 +59,12 @@ npm run stop
 | Detector | <http://127.0.0.1:8000/status> |
 
 ## Develop
+
+With the app running, check that each role signs in and reaches only what it should, using the seeded accounts:
+
+```bash
+npm run check:roles
+```
 
 Run every test, with a throwaway local database that starts and stops by itself:
 

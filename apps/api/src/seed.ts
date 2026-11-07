@@ -1,7 +1,10 @@
 import { randomBytes } from "node:crypto";
+import { writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import type { Role } from "@bantaybuhay/shared";
 import pg from "pg";
+import { loadConfig } from "./config.js";
+import { createPool } from "./database.js";
 import { hashPassword } from "./password.js";
 
 // Every person here is invented. Emails use .test, a domain reserved for testing.
@@ -96,12 +99,28 @@ export async function seed(db: pg.Pool) {
   return { accounts, skipped: false, cameras };
 }
 
+// npm run db:seed: seeds the database in apps/api/.env and saves the passwords to the git-ignored
+// seed-credentials.local.json at the repository root. Passwords are never printed.
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const url = process.env.DATABASE_URL;
-  if (!url) throw new Error("DATABASE_URL is required");
-  if (process.env.ALLOW_SEED !== "true") throw new Error("Set ALLOW_SEED=true to seed test accounts");
-  const db = new pg.Pool({ connectionString: url });
-  // Stdout carries only the credentials, so it can be redirected to a git-ignored file.
-  console.log(JSON.stringify(await seed(db), null, 2));
-  await db.end();
+  const config = loadConfig(process.env);
+  const db = createPool(config);
+  try {
+    const result = await seed(db);
+    if (result.skipped) {
+      console.log("The database already has users, so no accounts were created or changed.");
+      if (result.cameras) console.log(`Added ${result.cameras} simulated cameras.`);
+    } else {
+      const output = fileURLToPath(new URL("../../../seed-credentials.local.json", import.meta.url));
+      writeFileSync(output, `${JSON.stringify(result.accounts, null, 2)}
+`, { mode: 0o600 });
+      const count = (role: Role) => result.accounts.filter((account) => account.role === role).length;
+      console.log(
+        `Created ${result.accounts.length} fictional accounts: ${count("admin")} admins, ${count("operator")} DRRM operators, ` +
+          `${count("responder")} responders, ${count("civilian")} civilians. Added ${result.cameras} simulated cameras.`,
+      );
+      console.log("Emails and passwords are in seed-credentials.local.json at the repository root (git-ignored).");
+    }
+  } finally {
+    await db.end();
+  }
 }

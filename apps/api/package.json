@@ -9,7 +9,9 @@
     "start": "node --env-file-if-exists=.env dist/server.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
-    "db:check": "tsx --env-file-if-exists=.env src/check-db.ts"
+    "db:check": "tsx --env-file-if-exists=.env src/check-db.ts",
+    "db:seed": "tsx --env-file-if-exists=.env src/seed.ts",
+    "check:roles": "tsx src/check-roles.ts"
   },
   "dependencies": {
     "@bantaybuhay/shared": "*",

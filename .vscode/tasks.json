@@ -42,11 +42,24 @@
       "problemMatcher": []
     },
     {
+      "label": "Check every role (app must be running)",
+      "detail": "Signs in as each seeded role and checks what it can and can't reach",
+      "type": "npm",
+      "script": "check:roles",
+      "problemMatcher": []
+    },
+    {
+      "label": "Seed test accounts (empty database only)",
+      "detail": "Creates the 20 fictional accounts and 6 cameras; passwords go to seed-credentials.local.json",
+      "type": "npm",
+      "script": "db:seed",
+      "problemMatcher": []
+    },
+    {
       "label": "Check Supabase connection",
       "detail": "Checks the settings in apps/api/.env against Supabase",
       "type": "npm",
       "script": "db:check",
-      "path": "apps/api",
       "problemMatcher": []
     },
     {
