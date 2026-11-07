@@ -60,7 +60,7 @@ npm run stop
 
 | Service | Address |
 | --- | --- |
-| Web app | <http://127.0.0.1:5173> |
+| Web app | <http://127.0.0.1:5173>: the public landing page; sign in at `/login`, the console is at `/app` |
 | API | <http://127.0.0.1:3000> (the web app reaches it through `/api`) |
 | Detector | <http://127.0.0.1:8000/status> |
 

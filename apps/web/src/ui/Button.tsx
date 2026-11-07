@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, ReactNode } from "react";
+import type { AnchorHTMLAttributes, ButtonHTMLAttributes, ReactNode } from "react";
 import { cx } from "./cx";
 
 type Variant = "primary" | "accent" | "secondary" | "ghost" | "danger" | "inherit";
@@ -50,6 +50,25 @@ export function Button({
       {icon}
       {children}
     </button>
+  );
+}
+
+export interface LinkButtonProps extends AnchorHTMLAttributes<HTMLAnchorElement> {
+  href: string;
+  variant?: Variant;
+  size?: Size;
+  icon?: ReactNode;
+  fullWidth?: boolean;
+}
+
+// A link that looks like a button, for actions that go somewhere (a page or a section) rather
+// than change something. Same look and press feedback as Button.
+export function LinkButton({ variant = "primary", size = "md", icon, fullWidth, className, children, ...rest }: LinkButtonProps) {
+  return (
+    <a className={cx(BASE, VARIANTS[variant], SIZES[size], fullWidth && "w-full", className)} {...rest}>
+      {icon}
+      {children}
+    </a>
   );
 }
 

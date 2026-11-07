@@ -3,8 +3,33 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="color-scheme" content="dark" />
-    <title>BantayBuhay</title>
+    <!-- Light is the default theme; dark is a user choice, applied before React loads below. -->
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#F4F3EF" />
+    <title>BantayBuhay: incident detection and response for Kabankalan City</title>
+    <meta
+      name="description"
+      content="Cameras flag emergencies as they happen. A DRRM operator checks each alert, assigns responders and follows the incident on a map of all 32 barangays of Kabankalan City."
+    />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+
+    <!-- Link previews. og:image needs an absolute URL; add it once the site has its address. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="BantayBuhay" />
+    <meta property="og:title" content="BantayBuhay: incident detection and response for Kabankalan City" />
+    <meta
+      property="og:description"
+      content="Cameras flag emergencies, a DRRM operator confirms each alert and assigns responders, and every incident is tracked on a map of all 32 barangays."
+    />
+    <meta property="og:locale" content="en_PH" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="BantayBuhay: incident detection and response for Kabankalan City" />
+    <meta
+      name="twitter:description"
+      content="Cameras flag emergencies, a DRRM operator confirms each alert and assigns responders, and every incident is tracked on a map of all 32 barangays."
+    />
+
+    <script src="/theme-init.js"></script>
   </head>
   <body>
     <div id="root"></div>

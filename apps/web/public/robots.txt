@@ -1,0 +1,7 @@
+# The public page can be indexed; the console, sign-in and API can't.
+User-agent: *
+Allow: /$
+Disallow: /app
+Disallow: /login
+Disallow: /styleguide
+Disallow: /api/

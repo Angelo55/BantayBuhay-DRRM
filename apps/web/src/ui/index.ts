@@ -1,4 +1,4 @@
-export { Button, IconButton } from "./Button";
+export { Button, IconButton, LinkButton } from "./Button";
 export { cx } from "./cx";
 export { AlertBanner, EmptyState, ErrorState, Modal, OfflineNotice, Skeleton, Toast } from "./Feedback";
 export { Field, Input, SegmentedControl, Select, Textarea } from "./Form";

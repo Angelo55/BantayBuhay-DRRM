@@ -1,10 +1,26 @@
-import { TriangleAlert } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { ArrowLeft, TriangleAlert } from "lucide-react";
+import { useEffect, useState, type FormEvent } from "react";
 import { api, ApiError } from "../lib/api";
+import { linkTo, navigate, signInRole, type SignInRole } from "../lib/router";
 import type { User } from "../lib/types";
 import { Button, Field, Input, STROKE } from "../ui";
 
-export function LoginPage({ onSignedIn }: { onSignedIn: (user: User) => void }) {
+const ROLE_TITLE: Record<SignInRole, string> = {
+  operator: "Operations console sign-in",
+  responder: "Responder sign-in",
+  civilian: "Civilian sign-in",
+};
+
+// Every role signs in with the same form; the role from the landing page only sets the heading.
+export function SignInPage() {
+  const role = signInRole();
+  // Already signed in: go straight to the console.
+  useEffect(() => {
+    api<{ user: User }>("/api/auth/me")
+      .then(() => navigate("/app", { replace: true }))
+      .catch(() => undefined);
+  }, []);
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -15,11 +31,11 @@ export function LoginPage({ onSignedIn }: { onSignedIn: (user: User) => void }) 
     setBusy(true);
     setError(null);
     try {
-      const { user } = await api<{ user: User }>("/api/auth/login", {
+      await api<{ user: User }>("/api/auth/login", {
         method: "POST",
         body: { email, password },
       });
-      onSignedIn(user);
+      navigate("/app", { replace: true });
     } catch (caught) {
       if (caught instanceof ApiError && caught.status === 429) {
         setError("Too many attempts. Wait a minute, then try again.");
@@ -36,8 +52,15 @@ export function LoginPage({ onSignedIn }: { onSignedIn: (user: User) => void }) 
   return (
     <main className="grid min-h-dvh place-items-center bg-canvas px-4 py-10 text-fg">
       <div className="w-full max-w-md">
+        <a
+          {...linkTo("/")}
+          className="mb-5 inline-flex min-h-11 items-center gap-2 rounded-full px-2 font-display text-[15px] font-medium text-fg-2 hover:text-fg"
+        >
+          <ArrowLeft aria-hidden="true" size={18} strokeWidth={STROKE} />
+          BantayBuhay home
+        </a>
         <div className="rounded-panel bg-card p-8 shadow-float sm:p-10">
-          <p className="font-display text-[15px] font-medium text-fg-2">BantayBuhay</p>
+          <p className="font-display text-[15px] font-medium text-fg-2">{role ? ROLE_TITLE[role] : "BantayBuhay"}</p>
           <h1 className="mt-2 font-display text-[32px] font-semibold leading-[1.05] tracking-[-0.02em] sm:text-[40px]">
             Kabankalan City incident response
           </h1>

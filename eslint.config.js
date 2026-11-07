@@ -12,6 +12,13 @@ export default tseslint.config(
     rules: reactHooks.configs.recommended.rules,
   },
   {
+    // Plain browser scripts served as files, such as the theme set before the page loads.
+    files: ["apps/web/public/**/*.js"],
+    languageOptions: {
+      globals: { document: "readonly", localStorage: "readonly", window: "readonly" },
+    },
+  },
+  {
     // Plain Node scripts, such as the test database helper.
     files: ["scripts/**/*.mjs"],
     languageOptions: {

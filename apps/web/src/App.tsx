@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import { CivilianHome } from "./components/CivilianHome";
 import { Console } from "./components/Console";
-import { LoginPage } from "./components/LoginPage";
 import { api, ApiError } from "./lib/api";
+import { navigate } from "./lib/router";
 import type { User } from "./lib/types";
 import { ErrorState, Skeleton, useTheme } from "./ui";
 
-type Session = { state: "loading" } | { state: "signed-out" } | { state: "signed-in"; user: User } | { state: "error" };
+type Session = { state: "loading" } | { state: "signed-in"; user: User } | { state: "error" };
 
 export function App() {
   const [session, setSession] = useState<Session>({ state: "loading" });
@@ -15,14 +15,16 @@ export function App() {
   useEffect(() => {
     api<{ user: User }>("/api/auth/me")
       .then(({ user }) => setSession({ state: "signed-in", user }))
-      .catch((error: unknown) =>
-        setSession(error instanceof ApiError && error.status === 401 ? { state: "signed-out" } : { state: "error" }),
-      );
+      .catch((error: unknown) => {
+        // Not signed in: the sign-in page brings people back here afterwards.
+        if (error instanceof ApiError && error.status === 401) navigate("/login", { replace: true });
+        else setSession({ state: "error" });
+      });
   }, []);
 
   async function signOut() {
     await api("/api/auth/logout", { method: "POST" }).catch(() => undefined);
-    setSession({ state: "signed-out" });
+    navigate("/login", { replace: true });
   }
 
   switch (session.state) {
@@ -46,8 +48,6 @@ export function App() {
           </div>
         </main>
       );
-    case "signed-out":
-      return <LoginPage onSignedIn={(user) => setSession({ state: "signed-in", user })} />;
     case "signed-in":
       return session.user.role === "civilian" ? (
         <CivilianHome user={session.user} theme={theme} onThemeChange={setTheme} onSignOut={signOut} />
