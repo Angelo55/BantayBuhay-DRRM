@@ -61,15 +61,21 @@ published=$(docker compose ps --format '{{.Service}} {{.Ports}}' | grep -e '->' 
 [ -z "$published" ] || fail "only nginx may publish a port, found: $published"
 echo "ok: only nginx publishes a port"
 
-docker compose stop redis >/dev/null 2>&1
+# The API no longer uses Redis; readiness depends on the database alone.
+docker compose stop postgres >/dev/null 2>&1
 status=$(curl -s -o /dev/null -w '%{http_code}' "$base/api/readyz")
-docker compose start redis >/dev/null 2>&1
-[ "$status" = 503 ] || fail "readiness returned $status with Redis stopped, expected 503"
-echo "ok: readiness reports 503 when Redis is down"
+docker compose start postgres >/dev/null 2>&1
+[ "$status" = 503 ] || fail "readiness returned $status with Postgres stopped, expected 503"
+echo "ok: readiness reports 503 when Postgres is down"
 
 docker compose up --detach --wait --wait-timeout 120 >/dev/null 2>&1 || fail "stack did not recover"
-curl -s "$base/api/readyz" | grep '"status":"ready"' >/dev/null || fail "readiness after Redis restart"
-echo "ok: readiness recovers when Redis returns"
+ready=0
+for _ in $(seq 1 20); do
+  curl -s "$base/api/readyz" | grep '"status":"ready"' >/dev/null && { ready=1; break; }
+  sleep 2
+done
+[ "$ready" = 1 ] || fail "readiness after Postgres restart"
+echo "ok: readiness recovers when Postgres returns"
 
 docker compose --progress quiet run --rm -T seed >/dev/null || fail "seeding cameras"
 reading=0

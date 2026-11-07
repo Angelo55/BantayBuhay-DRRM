@@ -10,6 +10,19 @@ permissions:
 jobs:
   node:
     runs-on: ubuntu-latest
+    # The API tests' throwaway database. On Windows laptops, npm run test:db provides the same.
+    services:
+      postgres:
+        image: postgis/postgis:17-3.7-alpine
+        env:
+          POSTGRES_USER: bantaybuhay
+          POSTGRES_PASSWORD: test-only
+          POSTGRES_DB: bantaybuhay_test
+        ports:
+          - 55432:5432
+        options: >-
+          --health-cmd "pg_isready -U bantaybuhay -d bantaybuhay_test"
+          --health-interval 2s --health-timeout 3s --health-retries 30
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -19,7 +32,6 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npm run lint
       - run: npm run typecheck
-      - run: npm run test:db
       - run: npm test
       - run: npm run build
 
