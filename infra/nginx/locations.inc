@@ -5,6 +5,14 @@ client_max_body_size 5m;
 root /opt/bantaybuhay/current/apps/web/dist;
 index index.html;
 
+# Ubuntu's nginx compresses only HTML by default. The app's script bundle is about 460 KB raw and
+# about 145 KB compressed, which matters most on a phone connection.
+gzip on;
+gzip_vary on;
+gzip_comp_level 6;
+gzip_min_length 1024;
+gzip_types text/css text/javascript application/javascript application/json image/svg+xml;
+
 # Applies to every location below, none of which sets its own add_header.
 add_header X-Content-Type-Options "nosniff" always;
 add_header X-Frame-Options "DENY" always;
