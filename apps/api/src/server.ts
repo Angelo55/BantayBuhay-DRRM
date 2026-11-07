@@ -1,20 +1,11 @@
-import { readFileSync } from "node:fs";
-import pg from "pg";
 import { buildApp } from "./app.js";
 import { loadConfig } from "./config.js";
+import { createPool } from "./database.js";
 import { snapshotStoreFor } from "./snapshots.js";
 
 const config = loadConfig(process.env);
 
-const pool = new pg.Pool({
-  connectionString: config.databaseUrl,
-  connectionTimeoutMillis: 5000,
-  // Supabase's free pooler allows few connections; one API process needs only a handful.
-  max: 5,
-  // Supabase signs its database certificates with its own CA. With the CA file, the connection
-  // is encrypted and the server is verified; without it (local test database), plain TCP.
-  ssl: config.databaseCaFile ? { ca: readFileSync(config.databaseCaFile, "utf8") } : undefined,
-});
+const pool = createPool(config);
 
 // One API process, so live updates use Socket.IO's built-in in-memory adapter. Running more than
 // one process would need a shared adapter again.
