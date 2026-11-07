@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+.venv/
+venv/
+
+# Build output
+.next/
+out/
+dist/
+build/
+*.tsbuildinfo
+
+# Python artifacts
+__pycache__/
+*.pyc
+
+# Secrets and credentials: never commit these
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials*.json
+credentials*.md
+seed-credentials.*
+
+# Biometric and personal data: never commit these
+registered_faces/
+uploads/
+media/
+snapshots/
+
+# Model weights and demo footage: store in S3 or fetch at build time
+*.pt
+*.onnx
+*.mp4
+*.mkv
+
+# Logs and OS files
+*.log
+.DS_Store
+Thumbs.db
