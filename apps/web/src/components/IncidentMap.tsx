@@ -13,7 +13,7 @@ import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ACTIVE_STATUSES, SEVERITY_RANK } from "../lib/labels";
 import type { BarangayCollection, Camera, Incident } from "../lib/types";
-import { IconButton, cx, type Theme } from "../ui";
+import { DURATION, IconButton, PULSE, cx, type Theme } from "../ui";
 import { STROKE } from "../ui/icons";
 
 // Vite doesn't copy MapLibre's worker on its own, so it's bundled as an asset and named here.
@@ -119,7 +119,8 @@ export function IncidentMap({
         const ring = token("inverse");
         m.addSource("barangays", { type: "geojson", data: { type: "FeatureCollection", features: [] }, promoteId: "psgc" });
         m.addSource("cameras", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
-        m.addSource("incidents", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+        // promoteId lets each marker keep its own animation state (feature-state) across updates.
+        m.addSource("incidents", { type: "geojson", data: { type: "FeatureCollection", features: [] }, promoteId: "id" });
         m.addSource("picked", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
         m.addLayer({
           id: "barangay-fill",
@@ -166,19 +167,27 @@ export function IncidentMap({
             "circle-stroke-width": 2,
           },
         });
-        m.addLayer({
-          id: "incident-pulse",
-          type: "circle",
-          source: "incidents",
-          filter: ["==", ["get", "pulse"], true],
-          paint: { "circle-radius": 14, "circle-color": severity, "circle-opacity": 0.35 },
-        });
+        // Pulse rings for unacknowledged high and critical incidents, one layer per severity so
+        // each can keep its own rhythm. These static values are what reduced motion shows: a
+        // wider, softer ring that marks the incident without moving.
+        for (const level of ["critical", "high"] as const) {
+          m.addLayer({
+            id: `incident-pulse-${level}`,
+            type: "circle",
+            source: "incidents",
+            filter: ["all", ["==", ["get", "pulse"], true], ["==", ["get", "severity"], level]],
+            paint: { "circle-radius": PULSE[level].radius * 0.7, "circle-color": severity, "circle-opacity": 0.35 },
+          });
+        }
         m.addLayer({
           id: "incidents",
           type: "circle",
           source: "incidents",
           paint: {
-            "circle-radius": ["+", 6, ["*", 2, ["get", "rank"]]],
+            // "appear" grows a new marker from nothing to full size (see the drop-in below).
+            "circle-radius": ["*", ["coalesce", ["feature-state", "appear"], 1], ["+", 6, ["*", 2, ["get", "rank"]]]],
+            "circle-opacity": ["coalesce", ["feature-state", "appear"], 1],
+            "circle-stroke-opacity": ["coalesce", ["feature-state", "appear"], 1],
             "circle-color": severity,
             // Override 2: every marker gets an ink ring, since some fills are faint on a light map.
             "circle-stroke-color": ["case", ["get", "selected"], token("accent-strong"), ring],
@@ -254,10 +263,14 @@ export function IncidentMap({
   }, [ready, cameras]);
 
   // Incident markers, and each barangay tinted by its most serious active incident.
+  const knownIncidents = useRef<Set<string> | null>(null);
   useEffect(() => {
     const map = mapRef.current;
     if (!ready || !map) return;
     const active = incidents.filter((item) => ACTIVE_STATUSES.includes(item.status));
+    // Markers already there when the map loads just appear; ones that arrive later drop in.
+    const fresh = knownIncidents.current ? active.filter((item) => !knownIncidents.current!.has(item.id)) : [];
+    knownIncidents.current = new Set([...(knownIncidents.current ?? []), ...active.map((item) => item.id)]);
     (map.getSource("incidents") as GeoJSONSource).setData({
       type: "FeatureCollection",
       features: active.map((item) => ({
@@ -272,6 +285,18 @@ export function IncidentMap({
         geometry: { type: "Point", coordinates: [item.longitude, item.latitude] },
       })),
     });
+    if (fresh.length && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      const started = performance.now();
+      const grow = (time: number) => {
+        const t = Math.min(1, (time - started) / (DURATION.base * 1000));
+        // Ease-out cubic, close to the "enter" curve: quick to appear, soft to settle.
+        const appear = 1 - (1 - t) ** 3;
+        for (const item of fresh) map.setFeatureState({ source: "incidents", id: item.id }, { appear });
+        if (t < 1) requestAnimationFrame(grow);
+      };
+      for (const item of fresh) map.setFeatureState({ source: "incidents", id: item.id }, { appear: 0 });
+      requestAnimationFrame(grow);
+    }
     if (barangays) {
       const worst = new Map<string, number>();
       for (const item of active) {
@@ -297,22 +322,25 @@ export function IncidentMap({
       center: [target.longitude, target.latitude],
       zoom: Math.max(map.getZoom(), 13),
       padding: { top: 0, bottom: 0, left: coveredLeft, right: coveredRight },
-      duration: reduced ? 0 : 600,
+      duration: reduced ? 0 : DURATION.slow * 1000,
     });
     // Only when the selection changes, not on every live update to the same incident.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, selectedId]);
 
-  // The one ambient animation: unacknowledged high and critical incidents pulse.
+  // The one ambient animation: unacknowledged high and critical incidents pulse until someone
+  // acknowledges them, critical faster and wider than high (PULSE in the motion tokens).
   useEffect(() => {
     const map = mapRef.current;
     if (!ready || !map) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     let frame = 0;
     const tick = (time: number) => {
-      const phase = (time % 1600) / 1600;
-      map.setPaintProperty("incident-pulse", "circle-radius", 12 + phase * 18);
-      map.setPaintProperty("incident-pulse", "circle-opacity", 0.45 * (1 - phase));
+      for (const level of ["critical", "high"] as const) {
+        const phase = (time % PULSE[level].period) / PULSE[level].period;
+        map.setPaintProperty(`incident-pulse-${level}`, "circle-radius", 10 + phase * (PULSE[level].radius - 10));
+        map.setPaintProperty(`incident-pulse-${level}`, "circle-opacity", 0.5 * (1 - phase));
+      }
       frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);

@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { SEVERITY_RANK, STATUS_LABEL, TYPE_LABEL } from "../lib/labels";
 import { timeAgo } from "../lib/time";
 import type { Incident, PendingDetection } from "../lib/types";
-import { CountBadge, EmptyState, ListCard, STROKE, Skeleton, incidentIcon } from "../ui";
+import { AnimatedItem, AnimatedList, CountBadge, EmptyState, ListCard, STROKE, Skeleton, incidentIcon } from "../ui";
 
 const bySeverityThenNewest = (a: Incident, b: Incident) =>
   SEVERITY_RANK[b.severity] - SEVERITY_RANK[a.severity] ||
@@ -69,7 +69,7 @@ export function IncidentQueue({
       {reviews.length > 0 && onSelectReview && (
         <Group title="Needs review" count={reviews.length}>
           {reviews.map((detection) => (
-            <li key={detection.id}>
+            <AnimatedItem key={detection.id}>
               <ListCard
                 title={`Possible ${TYPE_LABEL[detection.incidentType].toLowerCase()}`}
                 meta={`${detection.cameraName}, ${Math.round(detection.confidence * 100)}% sure`}
@@ -78,7 +78,7 @@ export function IncidentQueue({
                 selected={detection.id === selectedReviewId}
                 onClick={() => onSelectReview(detection.id)}
               />
-            </li>
+            </AnimatedItem>
           ))}
         </Group>
       )}
@@ -96,7 +96,7 @@ function Group({ title, count, children }: { title: string; count: number; child
         {title}
         <CountBadge count={count} label={title.toLowerCase()} />
       </h2>
-      <ul className="space-y-2">{children}</ul>
+      <AnimatedList>{children}</AnimatedList>
     </section>
   );
 }
@@ -120,7 +120,7 @@ function IncidentGroup({
       {items.map((incident) => {
         const unacknowledged = !incident.acknowledgedAt && incident.status === "detected";
         return (
-          <li key={incident.id}>
+          <AnimatedItem key={incident.id}>
             <ListCard
               title={TYPE_LABEL[incident.incidentType]}
               meta={`${incident.barangayName ?? "Outside mapped barangays"}, ${timeAgo(incident.detectedAt, now)}`}
@@ -130,7 +130,7 @@ function IncidentGroup({
               selected={incident.id === selectedId}
               onClick={() => onSelect(incident.id)}
             />
-          </li>
+          </AnimatedItem>
         );
       })}
     </Group>

@@ -3,7 +3,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { api, ApiError } from "../lib/api";
 import { linkTo, navigate, signInRole, type SignInRole } from "../lib/router";
 import type { User } from "../lib/types";
-import { Button, Field, Input, STROKE } from "../ui";
+import { Button, Field, Input, STROKE, cx } from "../ui";
 
 const ROLE_TITLE: Record<SignInRole, string> = {
   operator: "Operations console sign-in",
@@ -25,6 +25,8 @@ export function SignInPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Counts refusals, so each one replays the shake.
+  const [refusals, setRefusals] = useState(0);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -41,6 +43,7 @@ export function SignInPage() {
         setError("Too many attempts. Wait a minute, then try again.");
       } else if (caught instanceof ApiError && caught.status === 401) {
         setError("That email and password don't match an account.");
+        setRefusals((count) => count + 1);
       } else {
         setError("Couldn't reach BantayBuhay. Check your connection and try again.");
       }
@@ -65,7 +68,7 @@ export function SignInPage() {
             Kabankalan City incident response
           </h1>
 
-          <form onSubmit={submit} className="mt-8 space-y-5" noValidate>
+          <form key={refusals} onSubmit={submit} className={cx("mt-8 space-y-5", refusals > 0 && "shake")} noValidate>
             <Field label="Email">
               {({ id }) => (
                 <Input
@@ -96,7 +99,7 @@ export function SignInPage() {
                 {error}
               </p>
             )}
-            <Button type="submit" fullWidth size="lg" disabled={busy}>
+            <Button type="submit" fullWidth size="lg" loading={busy}>
               {busy ? "Signing in" : "Sign in"}
             </Button>
           </form>

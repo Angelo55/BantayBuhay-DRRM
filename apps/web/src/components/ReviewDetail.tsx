@@ -17,10 +17,12 @@ interface ReviewProps {
 
 export function ReviewDetail({ detection, now, onDone, onClose, onToast }: ReviewProps) {
   const [busy, setBusy] = useState(false);
+  const [decided, setDecided] = useState<"confirm" | "reject" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function review(decision: "confirm" | "reject") {
     setBusy(true);
+    setDecided(decision);
     setError(null);
     try {
       const body = await api<{ incident: Incident | null }>(`/api/detections/${detection.id}/review`, {
@@ -66,10 +68,10 @@ export function ReviewDetail({ detection, now, onDone, onClose, onToast }: Revie
         )}
         <Stat value={`${Math.round(detection.confidence * 100)}%`} label="model confidence" />
         <div className="space-y-3">
-          <Button fullWidth size="lg" disabled={busy} onClick={() => void review("confirm")}>
+          <Button fullWidth size="lg" disabled={busy && decided !== "confirm"} loading={busy && decided === "confirm"} onClick={() => void review("confirm")}>
             Confirm and raise incident
           </Button>
-          <Button fullWidth variant="secondary" disabled={busy} onClick={() => void review("reject")}>
+          <Button fullWidth variant="secondary" disabled={busy && decided !== "reject"} loading={busy && decided === "reject"} onClick={() => void review("reject")}>
             Reject, nothing's happening
           </Button>
           {error && <InlineError>{error}</InlineError>}

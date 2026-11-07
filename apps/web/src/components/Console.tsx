@@ -1,11 +1,12 @@
-import { LayoutGrid, LogOut, Map as MapIcon, MapPinPlus, Moon, Sun } from "lucide-react";
+import { LayoutGrid, LogOut, Map as MapIcon, MapPinPlus, Moon, Sun, Volume2, VolumeX } from "lucide-react";
 import { motion } from "motion/react";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../lib/api";
 import { SEVERITY_RANK, TYPE_LABEL } from "../lib/labels";
 import { useNow } from "../lib/time";
 import type { BarangayCollection, Camera, Incident, User } from "../lib/types";
 import { createSocket, useIncidents, type Connection } from "../lib/useIncidents";
+import { useEmergency } from "../lib/useEmergency";
 import { useMediaQuery } from "../lib/useMediaQuery";
 import { useReviewQueue } from "../lib/useReviewQueue";
 import {
@@ -17,8 +18,11 @@ import {
   STROKE,
   Stat,
   StatusPill,
-  Toast,
+  IconButton,
+  ToastStack,
+  useToasts,
   cx,
+  transition,
   type RailItem,
   type Theme,
 } from "../ui";
@@ -41,7 +45,6 @@ const RAIL_SPACE = 96;
 const QUEUE_SPACE = 392;
 const PANEL_SPACE = 436;
 
-const ENTRANCE = { duration: 0.32, ease: [0.22, 1, 0.36, 1] } as const;
 
 interface ConsoleProps {
   user: User;
@@ -60,8 +63,11 @@ export function Console({ user, theme, onThemeChange, onSignOut }: ConsoleProps)
   const [panel, setPanel] = useState<Panel>({ kind: "none" });
   const [point, setPoint] = useState<{ latitude: number; longitude: number } | null>(null);
   const [view, setView] = useState<"incidents" | "map">("incidents");
-  const [dismissedAlertId, setDismissedAlertId] = useState<string | null>(null);
-  const [toast, setToast] = useState({ open: false, message: "" });
+  const { toasts, show: showToast, dismiss: dismissToast } = useToasts();
+  const [acknowledging, setAcknowledging] = useState(false);
+  // Responders: an incident newly assigned to them stays announced until they open it.
+  const [assignedAlertId, setAssignedAlertId] = useState<string | null>(null);
+  const known = useRef<Set<string> | null>(null);
   const now = useNow();
   const desktop = useMediaQuery("(min-width: 1024px)");
   const wide = useMediaQuery("(min-width: 1400px)");
@@ -78,11 +84,39 @@ export function Console({ user, theme, onThemeChange, onSignOut }: ConsoleProps)
     return () => clearInterval(timer);
   }, []);
 
-  const showToast = useCallback((message: string) => setToast({ open: true, message }), []);
-  const closeToast = useCallback(() => setToast((current) => ({ ...current, open: false })), []);
+  // Operators: high and critical incidents raise a banner and sound until acknowledged. Medium
+  // and low ones arrive as a toast and a marker on the map, without a siren.
+  const emergency = useEmergency(incidents, isOperator);
+  useEffect(() => {
+    if (!isOperator || !newest || SEVERITY_RANK[newest.severity] >= 3) return;
+    showToast(`New ${SEVERITY_WORD[newest.severity].toLowerCase()} incident: ${TYPE_LABEL[newest.incidentType]}`);
+  }, [newest, isOperator, showToast]);
 
-  // The newest incident raises a banner until someone opens or dismisses it.
-  const alert: Incident | null = isOperator && newest && newest.id !== dismissedAlertId ? newest : null;
+  // Responders: anything that appears in their list after it first loads is a new assignment.
+  useEffect(() => {
+    if (isOperator || !loaded) return;
+    if (!known.current) {
+      known.current = new Set(incidents.map((item) => item.id));
+      return;
+    }
+    const fresh = incidents.find((item) => !known.current!.has(item.id));
+    for (const item of incidents) known.current.add(item.id);
+    if (fresh) setAssignedAlertId(fresh.id);
+  }, [incidents, isOperator, loaded]);
+  const assigned: Incident | null = assignedAlertId ? (incidents.find((item) => item.id === assignedAlertId) ?? null) : null;
+
+  async function acknowledge(id: string) {
+    setAcknowledging(true);
+    try {
+      const body = await api<{ incident: Incident }>(`/api/incidents/${id}/acknowledge`, { method: "POST" });
+      upsert(body.incident);
+      showToast("Acknowledged");
+    } catch {
+      showToast("Couldn't acknowledge. Try again.");
+    } finally {
+      setAcknowledging(false);
+    }
+  }
 
   const selected = panel.kind === "incident" ? incidents.find((item) => item.id === panel.id) : undefined;
   const reviewing = panel.kind === "review" ? pending.find((item) => item.id === panel.id) : undefined;
@@ -90,7 +124,7 @@ export function Console({ user, theme, onThemeChange, onSignOut }: ConsoleProps)
 
   const select = (id: string) => {
     setPanel({ kind: "incident", id });
-    if (alert?.id === id) setDismissedAlertId(id);
+    if (assignedAlertId === id) setAssignedAlertId(null);
   };
   const startReport = () => {
     setPoint(null);
@@ -130,7 +164,19 @@ export function Console({ user, theme, onThemeChange, onSignOut }: ConsoleProps)
     <div className="glass rounded-panel p-6 shadow-soft">
       <div className="flex items-start justify-between gap-4">
         <p className="font-display text-[15px] font-medium text-fg-2">BantayBuhay</p>
-        <ConnectionPill connection={connection} />
+        <div className="flex items-center gap-2">
+          {isOperator && (
+            <IconButton
+              label={emergency.soundOn ? "Turn alert sound off" : "Turn alert sound on"}
+              aria-pressed={emergency.soundOn}
+              onClick={() => emergency.setSoundOn(!emergency.soundOn)}
+              className="h-9 w-9"
+            >
+              {emergency.soundOn ? <Volume2 size={18} strokeWidth={STROKE} /> : <VolumeX size={18} strokeWidth={STROKE} />}
+            </IconButton>
+          )}
+          <ConnectionPill connection={connection} />
+        </div>
       </div>
       <h1 className="mt-2 font-display text-[32px] font-semibold leading-[1.05] tracking-[-0.02em] sm:text-[40px]">
         {isOperator ? "Kabankalan City operations" : "Your assignments"}
@@ -146,24 +192,46 @@ export function Console({ user, theme, onThemeChange, onSignOut }: ConsoleProps)
     </div>
   );
 
-  const banner = alert && (
+  const urgent = emergency.urgent;
+  const banner = urgent ? (
     <AlertBanner
-      tone={SEVERITY_RANK[alert.severity] >= 3 ? "critical" : "info"}
-      title={`New ${SEVERITY_WORD[alert.severity].toLowerCase()} incident: ${TYPE_LABEL[alert.incidentType]}`}
+      key={urgent.id}
+      severity={urgent.severity === "critical" ? "critical" : "high"}
+      title={`${SEVERITY_WORD[urgent.severity]} incident: ${TYPE_LABEL[urgent.incidentType]}`}
       actions={
         <>
-          <Button variant="secondary" onClick={() => select(alert.id)}>
+          <Button variant="secondary" loading={acknowledging} onClick={() => void acknowledge(urgent.id)}>
+            Acknowledge
+          </Button>
+          <Button variant="inherit" onClick={() => select(urgent.id)}>
             Open
           </Button>
-          <Button variant="inherit" onClick={() => setDismissedAlertId(alert.id)}>
-            Dismiss
-          </Button>
+          {emergency.soundBlocked && (
+            <Button variant="inherit" onClick={() => void emergency.enableSound()}>
+              Enable alert sound
+            </Button>
+          )}
         </>
       }
     >
-      {alert.barangayName ?? "Outside mapped barangays"}
+      {urgent.barangayName ?? "Outside mapped barangays"}
+      {emergency.waiting > 0 && `. ${emergency.waiting} more waiting.`}
     </AlertBanner>
-  );
+  ) : assigned ? (
+    <AlertBanner
+      key={assigned.id}
+      tone={SEVERITY_RANK[assigned.severity] >= 3 ? "critical" : "info"}
+      severity={assigned.severity === "critical" ? "critical" : assigned.severity === "high" ? "high" : undefined}
+      title={`Assigned to you: ${TYPE_LABEL[assigned.incidentType]}`}
+      actions={
+        <Button variant="secondary" onClick={() => select(assigned.id)}>
+          Open
+        </Button>
+      }
+    >
+      {assigned.barangayName ?? "Outside mapped barangays"}
+    </AlertBanner>
+  ) : null;
 
   const notices = (
     <>
@@ -303,7 +371,7 @@ export function Console({ user, theme, onThemeChange, onSignOut }: ConsoleProps)
             aria-label={panelLabel}
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={ENTRANCE}
+            transition={transition.enter}
             className={cx(
               "z-40 overflow-hidden",
               panel.kind === "report"
@@ -319,7 +387,7 @@ export function Console({ user, theme, onThemeChange, onSignOut }: ConsoleProps)
           </motion.aside>
       )}
 
-      <Toast open={toast.open} message={toast.message} onClose={closeToast} />
+      <ToastStack toasts={toasts} onDismiss={dismissToast} />
     </div>
   );
 }

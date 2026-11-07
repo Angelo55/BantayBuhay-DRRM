@@ -26,6 +26,7 @@ function doneMessage(action: IncidentAction): string {
 
 export function IncidentDetail({ incident, role, now, onChanged, onClose, onToast }: DetailProps) {
   const [busy, setBusy] = useState(false);
+  const [running, setRunning] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [events, setEvents] = useState<IncidentEvent[]>([]);
   const [confirmDismiss, setConfirmDismiss] = useState(false);
@@ -45,6 +46,7 @@ export function IncidentDetail({ incident, role, now, onChanged, onClose, onToas
 
   async function run(action: IncidentAction) {
     setBusy(true);
+    setRunning(action.label);
     setError(null);
     try {
       const body =
@@ -133,7 +135,8 @@ export function IncidentDetail({ incident, role, now, onChanged, onClose, onToas
                     fullWidth
                     size={action.emphasis === "primary" ? "lg" : "md"}
                     variant={action.emphasis === "primary" ? "primary" : action.emphasis === "secondary" ? "secondary" : "ghost"}
-                    disabled={busy}
+                    disabled={busy && running !== action.label}
+                    loading={busy && running === action.label}
                     onClick={() => void run(action)}
                   >
                     {action.label}

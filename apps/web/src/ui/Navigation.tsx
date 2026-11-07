@@ -1,6 +1,8 @@
 import type { Severity } from "@bantaybuhay/shared";
+import { motion } from "motion/react";
 import type { ReactNode } from "react";
 import { cx } from "./cx";
+import { SPRING } from "./motion";
 import { SeverityLabel } from "./Severity";
 import { IconTile } from "./Surface";
 
@@ -40,11 +42,19 @@ export function Rail({ label, items, activeId, onSelect, orientation = "vertical
                 aria-label={item.label}
                 title={item.label}
                 className={cx(
-                  "flex h-12 w-12 items-center justify-center rounded-control transition-[background-color,color] duration-200 ease-out-soft",
-                  active ? "bg-accent text-on-accent" : "text-on-inverse-2 hover:text-on-inverse",
+                  "relative flex h-12 w-12 items-center justify-center rounded-control transition-colors duration-fast ease-standard",
+                  active ? "text-on-accent" : "text-on-inverse-2 hover:text-on-inverse",
                 )}
               >
-                {item.icon}
+                {active && (
+                  <motion.span
+                    layoutId={`rail-active-${label}`}
+                    transition={SPRING.gentle}
+                    aria-hidden="true"
+                    className="absolute inset-0 rounded-control bg-accent"
+                  />
+                )}
+                <span className="relative">{item.icon}</span>
               </button>
             </li>
           );
@@ -73,7 +83,7 @@ export function ListCard({ title, meta, tile, severity, selected, note, onClick 
       onClick={onClick}
       aria-current={selected ? "true" : undefined}
       className={cx(
-        "flex w-full items-center gap-4 rounded-card p-3 pr-4 text-left transition-[transform,box-shadow,background-color] duration-200 ease-out-soft hover:-translate-y-0.5 active:scale-[0.99]",
+        "flex w-full items-center gap-4 rounded-card p-3 pr-4 text-left transition-[transform,box-shadow,background-color] duration-fast ease-standard hover:-translate-y-0.5 active:scale-[0.99] active:duration-instant",
         selected ? "bg-inverse text-on-inverse shadow-lift" : "bg-card-muted text-fg hover:shadow-lift",
       )}
     >

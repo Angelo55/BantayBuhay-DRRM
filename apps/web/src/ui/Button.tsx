@@ -1,3 +1,4 @@
+import { LoaderCircle } from "lucide-react";
 import type { AnchorHTMLAttributes, ButtonHTMLAttributes, ReactNode } from "react";
 import { cx } from "./cx";
 
@@ -21,14 +22,16 @@ const SIZES: Record<Size, string> = {
 
 const BASE =
   "inline-flex select-none items-center justify-center gap-2 rounded-full font-display font-medium " +
-  "transition-[transform,box-shadow,background-color,color] duration-200 ease-out-soft " +
-  "active:scale-[0.97] active:duration-[120ms] disabled:pointer-events-none disabled:opacity-45";
+  "transition-[transform,box-shadow,background-color,color] duration-fast ease-standard " +
+  "active:scale-[0.97] active:duration-instant disabled:pointer-events-none disabled:opacity-45";
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
   size?: Size;
   icon?: ReactNode;
   fullWidth?: boolean;
+  // Shows a spinner in place of the icon and blocks repeat presses while work is in progress.
+  loading?: boolean;
 }
 
 export function Button({
@@ -36,18 +39,22 @@ export function Button({
   size = "md",
   icon,
   fullWidth,
+  loading = false,
   className,
   children,
   type = "button",
+  disabled,
   ...rest
 }: ButtonProps) {
   return (
     <button
       type={type}
+      aria-busy={loading || undefined}
+      disabled={disabled || loading}
       className={cx(BASE, VARIANTS[variant], SIZES[size], fullWidth && "w-full", className)}
       {...rest}
     >
-      {icon}
+      {loading ? <LoaderCircle aria-hidden="true" size={18} strokeWidth={2} className="animate-spin" /> : icon}
       {children}
     </button>
   );
@@ -95,7 +102,7 @@ export function IconButton({
       aria-label={label}
       title={label}
       className={cx(
-        "inline-flex h-11 w-11 shrink-0 items-center justify-center transition-[transform,box-shadow] duration-200 ease-out-soft active:scale-[0.94] disabled:opacity-45",
+        "inline-flex h-11 w-11 shrink-0 items-center justify-center transition-[transform,box-shadow] duration-fast ease-standard active:scale-[0.94] active:duration-instant disabled:opacity-45",
         shape === "round" ? "rounded-full" : "rounded-control",
         tone === "card" ? "bg-card text-fg shadow-soft hover:shadow-lift" : "bg-inverse text-on-inverse",
         className,

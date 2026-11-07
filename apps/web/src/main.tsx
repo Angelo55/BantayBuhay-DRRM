@@ -1,13 +1,13 @@
 import "@fontsource/atkinson-hyperlegible-next/400.css";
 import "@fontsource/atkinson-hyperlegible-next/700.css";
 import "@fontsource-variable/outfit/wght.css";
-import { MotionConfig } from "motion/react";
+import { MotionConfig, motion } from "motion/react";
 import { lazy, StrictMode, Suspense, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
 import { Landing } from "./landing/Landing";
 import { usePath } from "./lib/router";
-import { useTheme } from "./ui";
+import { transition, useTheme } from "./ui";
 
 // Only the public landing page loads up front. The console (with its map library and live
 // connection), the sign-in page and the style guide load when someone opens them.
@@ -36,7 +36,13 @@ function Root() {
   else if (path === "/styleguide") page = <StyleGuide />;
   else page = <App />;
 
-  return <Suspense fallback={<div className="min-h-dvh bg-canvas" />}>{page}</Suspense>;
+  return (
+    <Suspense fallback={<div className="min-h-dvh bg-canvas" />}>
+      <motion.div key={path} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={transition.fast}>
+        {page}
+      </motion.div>
+    </Suspense>
+  );
 }
 
 createRoot(document.getElementById("root")!).render(

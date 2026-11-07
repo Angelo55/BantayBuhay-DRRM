@@ -126,8 +126,47 @@
   --shadow-lift: var(--bb-shadow-md);
   --shadow-float: var(--bb-shadow-lg);
 
-  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  /* Motion: the same values as src/ui/motion.ts (motion.test.ts checks them). */
+  --ease-standard: var(--bb-ease-standard);
+  --ease-enter: var(--bb-ease-enter);
+  --ease-exit: var(--bb-ease-exit);
+  --ease-emphasized: var(--bb-ease-emphasized);
+  /* Older names, kept so existing classes keep working. */
+  --ease-out-soft: var(--bb-ease-enter);
   --ease-in-out-soft: cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+/* Motion tokens. Durations and curves don't change with the theme. */
+:root {
+  --bb-duration-instant: 100ms;
+  --bb-duration-fast: 180ms;
+  --bb-duration-base: 280ms;
+  --bb-duration-slow: 460ms;
+  --bb-duration-expressive: 760ms;
+  --bb-ease-standard: cubic-bezier(0.32, 0.72, 0, 1);
+  --bb-ease-enter: cubic-bezier(0.22, 1, 0.36, 1);
+  --bb-ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  --bb-ease-emphasized: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --bb-distance-xs: 4px;
+  --bb-distance-sm: 8px;
+  --bb-distance-md: 16px;
+  --bb-distance-lg: 32px;
+  --bb-distance-xl: 64px;
+  --bb-pulse-critical: 1200ms;
+  --bb-pulse-high: 1900ms;
+}
+
+@utility duration-instant {
+  transition-duration: var(--bb-duration-instant);
+}
+@utility duration-fast {
+  transition-duration: var(--bb-duration-fast);
+}
+@utility duration-base {
+  transition-duration: var(--bb-duration-base);
+}
+@utility duration-slow {
+  transition-duration: var(--bb-duration-slow);
 }
 
 
@@ -152,23 +191,137 @@ body {
   }
 }
 
+/* Loading placeholder: a highlight slides across. Only transform moves, so it stays smooth. */
 @keyframes bb-shimmer {
   from {
-    background-position: 100% 0;
+    transform: translateX(-100%);
   }
   to {
-    background-position: -100% 0;
+    transform: translateX(100%);
   }
 }
 .skeleton {
-  background: linear-gradient(90deg, var(--bb-card-muted) 25%, var(--bb-hairline) 50%, var(--bb-card-muted) 75%);
-  background-size: 200% 100%;
-  animation: bb-shimmer 1.6s linear infinite;
+  position: relative;
+  overflow: hidden;
+  background: var(--bb-card-muted);
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, var(--bb-hairline), transparent);
+  animation: bb-shimmer 1.6s var(--bb-ease-standard) infinite;
 }
 
+/* A ring that grows and fades around an alert icon or badge. Critical pulses faster than high. */
+@keyframes bb-pulse-ring {
+  from {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+  to {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+.pulse-ring {
+  position: relative;
+  isolation: isolate;
+}
+.pulse-ring::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: currentColor;
+  animation: bb-pulse-ring var(--bb-pulse-high) var(--bb-ease-exit) infinite;
+}
+.pulse-ring[data-severity="critical"]::before {
+  animation-duration: var(--bb-pulse-critical);
+}
+
+/* A short sideways shake for a rejected form, so the error is noticed. */
+@keyframes bb-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20%,
+  60% {
+    transform: translateX(calc(var(--bb-distance-sm) * -1));
+  }
+  40%,
+  80% {
+    transform: translateX(var(--bb-distance-sm));
+  }
+}
+.shake {
+  animation: bb-shake 360ms var(--bb-ease-standard);
+}
+
+/* A toast's time left: a line that shrinks. Paused while the toast is hovered or focused. */
+@keyframes bb-timer {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+.toast-timer {
+  animation: bb-timer linear forwards;
+}
+
+/* Dialogs fade and rise from where they open; the backdrop fades. Native <dialog> keeps focus
+   trapped and returns it on close. */
+.bb-dialog {
+  opacity: 0;
+  transform: translateY(var(--bb-distance-sm)) scale(0.98);
+  transition:
+    opacity var(--bb-duration-base) var(--bb-ease-enter),
+    transform var(--bb-duration-base) var(--bb-ease-enter),
+    overlay var(--bb-duration-base) allow-discrete,
+    display var(--bb-duration-base) allow-discrete;
+}
+.bb-dialog[open] {
+  opacity: 1;
+  transform: none;
+}
+@starting-style {
+  .bb-dialog[open] {
+    opacity: 0;
+    transform: translateY(var(--bb-distance-sm)) scale(0.98);
+  }
+}
+.bb-dialog::backdrop {
+  opacity: 0;
+  transition:
+    opacity var(--bb-duration-base) var(--bb-ease-standard),
+    overlay var(--bb-duration-base) allow-discrete,
+    display var(--bb-duration-base) allow-discrete;
+}
+.bb-dialog[open]::backdrop {
+  opacity: 1;
+}
+@starting-style {
+  .bb-dialog[open]::backdrop {
+    opacity: 0;
+  }
+}
+
+/* Reduced motion: transitions finish at once, loops stop, and alerts keep a static emphasis
+   (a solid ring) instead of a pulse, so they're still impossible to miss. */
 @media (prefers-reduced-motion: reduce) {
-  .skeleton {
+  .skeleton::after,
+  .shake,
+  .toast-timer {
     animation: none;
+  }
+  .pulse-ring::before {
+    animation: none;
+    transform: scale(1.35);
+    opacity: 0.35;
   }
   *,
   *::before,

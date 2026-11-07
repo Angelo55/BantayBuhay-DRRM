@@ -1,6 +1,7 @@
 export { Button, IconButton, LinkButton } from "./Button";
 export { cx } from "./cx";
-export { AlertBanner, EmptyState, ErrorState, Modal, OfflineNotice, Skeleton, Toast } from "./Feedback";
+export { AlertBanner, EmptyState, ErrorState, Modal, OfflineNotice, Skeleton, Toast, ToastStack, useToasts, type ToastItem } from "./Feedback";
+export { DISTANCE, DURATION, EASE, PULSE, SPRING, STAGGER, cssEase, transition } from "./motion";
 export { Field, Input, SegmentedControl, Select, Textarea } from "./Form";
 export { INCIDENT_ICON, STROKE, incidentIcon } from "./icons";
 export { ListCard, MapCallout, MapPill, Rail, type RailItem } from "./Navigation";
@@ -10,3 +11,4 @@ export { Card, CountBadge, IconTile, Stat, StatusPill } from "./Surface";
 export { SwipeToConfirm } from "./SwipeToConfirm";
 export { ThemeToggle } from "./ThemeToggle";
 export { useTheme, type Theme } from "./theme";
+export { AnimatedItem, AnimatedList } from "./AnimatedList";

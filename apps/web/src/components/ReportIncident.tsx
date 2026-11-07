@@ -131,7 +131,7 @@ export function ReportIncident({ point, onReported, onCancel, onToast }: ReportP
         </Field>
 
         {error && <InlineError>{error}</InlineError>}
-        <Button type="submit" fullWidth size="lg" disabled={!point || busy}>
+        <Button type="submit" fullWidth size="lg" disabled={!point} loading={busy}>
           {busy ? "Reporting" : "Report incident"}
         </Button>
       </div>

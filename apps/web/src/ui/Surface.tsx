@@ -1,5 +1,7 @@
+import { motion } from "motion/react";
 import type { HTMLAttributes, ReactNode } from "react";
 import { cx } from "./cx";
+import { DISTANCE, transition } from "./motion";
 
 type CardTone = "card" | "muted" | "glass" | "inverse" | "accent";
 
@@ -55,7 +57,15 @@ export function IconTile({
 export function Stat({ value, label }: { value: number | string; label: string }) {
   return (
     <div className="flex items-center gap-3">
-      <span className="font-display text-[32px] font-light leading-none tabular-nums text-fg">{value}</span>
+      <motion.span
+        key={String(value)}
+        initial={{ opacity: 0.35, y: -DISTANCE.xs }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={transition.fast}
+        className="font-display text-[32px] font-light leading-none tabular-nums text-fg"
+      >
+        {value}
+      </motion.span>
       <span className="max-w-[9ch] text-[13px] leading-tight text-fg-2">{label}</span>
     </div>
   );
