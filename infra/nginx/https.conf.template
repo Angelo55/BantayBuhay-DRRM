@@ -14,8 +14,8 @@ server {
 }
 
 server {
-    listen 443 ssl;
-    http2 on;
+    # Ubuntu 24.04 ships nginx 1.24, which turns on HTTP/2 here ("http2 on;" needs 1.25.1 or newer).
+    listen 443 ssl http2;
     server_name ${SERVER_NAME};
 
     ssl_certificate /etc/letsencrypt/live/${SERVER_NAME}/fullchain.pem;
