@@ -2,7 +2,8 @@ import { readdir, readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import pg from "pg";
 
-const MIGRATIONS_DIR = fileURLToPath(new URL("../migrations/", import.meta.url));
+// Shared with the Supabase CLI: the same files are applied to Supabase and to the test database.
+const MIGRATIONS_DIR = fileURLToPath(new URL("../../../supabase/migrations/", import.meta.url));
 const LOCK_ID = 7262001;
 
 export async function migrate(databaseUrl: string): Promise<string[]> {

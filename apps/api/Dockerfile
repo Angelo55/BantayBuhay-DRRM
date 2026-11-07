@@ -27,7 +27,7 @@ COPY --from=build /repo/packages/shared/package.json packages/shared/package.jso
 COPY --from=build /repo/packages/shared/dist packages/shared/dist
 COPY --from=build /repo/apps/api/package.json apps/api/package.json
 COPY --from=build /repo/apps/api/dist apps/api/dist
-COPY --from=build /repo/apps/api/migrations apps/api/migrations
+COPY supabase/migrations supabase/migrations
 # Snapshots live on a volume; creating the folder here gives it the right owner.
 RUN mkdir -p /data/snapshots && chown node:node /data/snapshots
 USER node
