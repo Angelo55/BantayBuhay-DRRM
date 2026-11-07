@@ -1,5 +1,6 @@
 // Checks the settings in apps/api/.env against Supabase: npm run db:check -w apps/api
 // It prints only pass/fail results and counts, never the connection string, password or key.
+import { TLSSocket } from "node:tls";
 import { loadConfig } from "./config.js";
 import { createPool } from "./database.js";
 
@@ -32,16 +33,27 @@ try {
 }
 
 try {
-  const { rows } = await pool.query<{ ssl: boolean | null; postgis: string; barangays: number }>(
-    `SELECT (SELECT ssl FROM pg_stat_ssl WHERE pid = pg_backend_pid()) AS ssl,
-            PostGIS_Lib_Version() AS postgis,
-            (SELECT count(*)::int FROM barangays) AS barangays`,
-  );
-  const row = rows[0]!;
-  report(true, "Connected to the database");
-  report(row.ssl === true && Boolean(config.databaseCaFile), "Connection is encrypted and Supabase's certificate is verified");
-  report(true, "PostGIS is available", row.postgis);
-  report(row.barangays === 32, "Kabankalan barangays are loaded", `${row.barangays} of 32`);
+  const client = await pool.connect();
+  try {
+    report(true, "Connected to the database");
+    // Checked on this machine's socket. Postgres's own view (pg_stat_ssl) only describes the
+    // pooler's internal connection, not the one from here to Supabase.
+    const socket = (client as unknown as { connection: { stream: unknown } }).connection.stream;
+    const verified = socket instanceof TLSSocket && socket.encrypted && socket.authorized;
+    report(
+      verified,
+      "Connection is encrypted and Supabase's certificate is verified",
+      verified && socket instanceof TLSSocket ? String(socket.getProtocol()) : "",
+    );
+    const { rows } = await client.query<{ postgis: string; barangays: number }>(
+      `SELECT PostGIS_Lib_Version() AS postgis, (SELECT count(*)::int FROM barangays) AS barangays`,
+    );
+    const row = rows[0]!;
+    report(true, "PostGIS is available", row.postgis);
+    report(row.barangays === 32, "Kabankalan barangays are loaded", `${row.barangays} of 32`);
+  } finally {
+    client.release();
+  }
 } catch (error) {
   report(false, "Connected to the database", reason(error));
 } finally {
