@@ -167,7 +167,7 @@ def main() -> None:
                     for cameras, threads in LOADS
                 ],
             }
-        except Exception as error:  # A model that won't load shouldn't stop the others.
+        except Exception as error:  # noqa: BLE001 - one bad model shouldn't stop the others.
             entry = {"error": str(error)[:300]}
         report["models"][name] = entry
         print(json.dumps(entry), flush=True)
