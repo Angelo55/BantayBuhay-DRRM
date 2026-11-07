@@ -191,7 +191,7 @@ sudo chmod +x /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
 
 Allow only TLS 1.2 and 1.3. Add HSTS only after HTTPS is confirmed working, because browsers cache it.
 
-**No domain yet?** You can start on an IP-based hostname such as `<ip>.sslip.io`, which Let's Encrypt can usually issue for, subject to rate limits. A cheap domain looks better for judges.
+**You have no domain yet,** so use an IP-based hostname for `<domain>`, such as `<elastic-ip>.sslip.io`. Let's Encrypt can usually issue for these, subject to rate limits, and no DNS record is needed, so skip steps 2 and 3. A real domain can replace it later.
 
 ## 11. Systems Manager access
 

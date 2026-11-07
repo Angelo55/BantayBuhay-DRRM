@@ -1,6 +1,6 @@
 # Infrastructure proposal
 
-**Status: awaiting your decision.** Nothing here has been provisioned, and implementation starts only after you approve the stack.
+**Status: awaiting your decision.** Nothing here has been provisioned, and implementation starts only after you approve the stack. Region: Singapore (`ap-southeast-1`). Budget: $149 in AWS credit. Domain: none yet.
 
 ## Recommended stack
 
@@ -76,6 +76,21 @@ flowchart LR
 2. Above the threshold, it becomes an Incident in `Detected` and alerts operators. Below the threshold, it goes to the verification queue.
 3. Dispatch always requires an operator action. The system never auto-dispatches.
 4. Thresholds are set per class and per camera, because one global number won't suit both fire and person-down detection.
+
+## Cameras you own
+
+The system uses **cameras you own or buy, not existing public or LGU CCTV**. The demo stays on simulated feeds, and the same pipeline accepts a real camera later.
+
+| Area | What this means |
+|---|---|
+| Access | No third-party footage agreement is needed, which removes a major dependency |
+| Legal duties | **These don't go away.** As the camera operator you'd be the personal information controller. [NPC Circular 2024-02](https://privacy.gov.ph/wp-content/uploads/2024/08/NPC-Circular-No.-2024-02-CCTV-Systems.pdf) counts streets, schools, markets and evacuation centers as public spaces, whoever owns the camera. Notices, a declared purpose and retention limits still apply |
+| Placement | You'd need permission from the property owner or barangay at each site |
+| Purchase criteria | RTSP or ONVIF support without a vendor cloud, night vision, weather rating for outdoor use |
+| Network | **Open design question.** Streaming video from every site to Singapore needs steady upload bandwidth, which may be scarce in rural barangays. An on-site mini-PC running inference and sending only alerts and snapshots may suit a real pilot better. The inference service can run in either place, so this can wait for site measurements |
+| Cost model | The deck needs real quotes for cameras, power, connectivity and compute. **None have been collected yet** |
+
+This also supports the 30% Viability criterion, because owning hardware makes the per-site cost concrete.
 
 ## Data model
 
@@ -315,13 +330,24 @@ Prices are AWS on-demand Linux in Singapore (`ap-southeast-1`), from AWS's publi
 | **B. App on `t3.large`, plus `g4dn.xlarge` GPU during demos** | $0.1056/h + $0.736/h; GPU on 24/7 is $537/mo | Lowest | Medium | Good | GPU quota is often zero on new accounts, and increases can take time |
 | **C. Your existing EC2 plus inference on a team laptop** | No added compute | Depends on venue internet | Medium | Poor | Venue Wi-Fi becomes a single point of failure |
 
-**How to decide:** run a one-hour benchmark on `c7i.2xlarge`, for about $0.41 plus a little storage. The target is 4 simulated cameras at 2 fps each, or 8 inferences per second. Move to Option B only if that fails. Request the GPU quota now as insurance, since a request costs nothing.
+**How to decide:** run a one-hour benchmark on `c7i.2xlarge`, for about $0.41 plus a little storage. You've approved up to $5, which is about 12 hours. The target is 4 simulated cameras at 2 fps each, or 8 inferences per second. Move to Option B only if that fails. Request the GPU quota now as insurance, since a request costs nothing.
 
-**Example 14-day build, running 24/7:** Option A costs about $138 and Option B about $65 (with 40 GPU hours). Stopping instances when idle lowers both. Add storage and a public IPv4 address, roughly $3.65/mo for the address and about $0.10 per GB-month for EBS (approximate; confirm in the AWS calculator).
+**Your budget is $149 in AWS credit.** Check its expiry date and covered services under Billing > Credits, because I can't see those terms. The plan below stays well under the credit:
+
+| Item, through Nov 21 | Hours | Estimated cost |
+|---|---|---|
+| App host, `t3.large`, from Nov 11 | 240 | $25.34 |
+| `c7i.2xlarge`: benchmark, demo recording, rehearsals | 22 | $9.06 |
+| GPU fallback, `g4dn.xlarge`, only if needed | 20 | $14.72 |
+| Public IPv4 address (approximate) | 240 | $1.20 |
+| EBS storage, 50 GB (approximate) | | Under $5 |
+| **Total, including the GPU fallback** | | **About $55** |
+
+**Stop instances when idle.** Left running 24/7, `c7i.2xlarge` costs $9.88 a day, using the whole credit in about 15 days. `g4dn.xlarge` costs $17.66 a day, using it in about 8 days.
 
 `g5.xlarge` and `g6.xlarge` weren't in the price file I fetched for Singapore, so check the console if you'd prefer a newer GPU.
 
-Your current instance can't be assessed yet (see question 4 in [PLAN.md](PLAN.md)). As general guidance, avoid burstable `t3` instances for continuous inference, because they exhaust CPU credits.
+Your current instance is in Singapore, but it can't be assessed until I know its type (see question 4 in [PLAN.md](PLAN.md)). If it's at least as large as a `t3.large`, it can replace the app host above. Avoid burstable `t3` instances for continuous inference, because they exhaust CPU credits.
 
 ### Database
 

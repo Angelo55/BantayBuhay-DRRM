@@ -1,48 +1,116 @@
 # Phased plan
 
-**Status: awaiting your decisions.** Implementation starts after you approve the stack in [INFRASTRUCTURE.md](INFRASTRUCTURE.md).
+**Event:** TALISIK Hackathon Challenge 2026, Track 2: Disaster Risk Reduction and Management (College), at National University Bacolod.
+
+**Status:** updated 2026-11-07 with your answers and the official guidelines. Implementation starts after you approve the stack and this schedule.
+
+## Hard dates
+
+| Date (2026) | What's due | Owner |
+|---|---|---|
+| **Mon, Nov 9, 11:59 PM** | **Registration and concept proposal.** The portal closes strictly at this time | Team |
+| Nov 10 | Screening of entries | Organizers |
+| Wed, Nov 11 | Finalists and presentation order announced (top 10 per track) | Organizers |
+| Nov 12 to 17 | Final registration, security questions, and laptop declaration (brand, model, serial number) | Team |
+| **Tue, Nov 17, 11:59 PM** | **Initial pitch deck** | Team |
+| **Fri, Nov 20** | College round. Registration from 8:00 AM, final deck by **12:30 PM strictly**, pitching from 1:00 PM | Team |
+| Sat, Nov 21 | Winning decks showcase, for category champions | Champions |
+
+Everyone must be in the venue at least 5 minutes before the program begins. **Arriving late means immediate disqualification.**
+
+The guidelines give no registration link or proposal format, so get these from the organizers.
+
+## What the guidelines change
+
+**This is an idea-stage pitch competition, and working code isn't scored.** The guidelines say judges evaluate "the logic, validity, and regional practicality" and won't penalize teams for having no prototype. The earlier plan treated the build as the main deliverable, which no longer fits the scoring.
+
+| Criterion | Weight | What earns the points | Status |
+|---|---|---|---|
+| Problem-Solution Fit | **50%** | A verified NIR community problem, precise beneficiaries, root causes | **Largest gap.** The evidence so far is the CPSU incident in your paper and PSA population figures. No Kabankalan DRRM interview exists yet |
+| Viability and Feasibility | **30%** | Regional cost, accessibility, sustainability, piloting, compliance | Compliance design exists. Cost model and pilot plan don't |
+| Pitch Deck and Presentation | **20%** | Clear deck, student mastery, strong Q&A, on time | Not started |
+
+**Recommendation:** keep building, but as evidence for the pitch rather than the main goal. A short recorded demo proves feasibility and sets you apart, while validation work earns more of the score.
+
+**Pitch rules:**
+
+- **Timing:** a 5-minute pitch, plus 3 minutes of Q&A. Overtime costs 0.1 point per second, and the mic can be cut.
+- **Demo:** use a 30 to 45 second recorded clip, not a live demo. Decks are submitted ahead of time and there's an AV lineup, so ask the organizers whether embedded video plays.
+
+**Team rules to confirm now:**
+
+- **Composition:** exactly 3 eligible students and 1 faculty coach, from an accredited NIR institution. A school can field one team per category.
+- **Student-led work:** concept and pitch must be entirely student-led. The guidelines don't mention AI tools, so ask your coach or the organizers whether AI-assisted work must be disclosed. All three of you should be able to explain every part in Q&A.
+- **Intellectual property:** teams keep their IP, and BUGLAS NIR and DOST get non-exclusive promotional rights. Vincent's permission (see the decisions below) still matters.
 
 ## Your six questions
 
 | # | Question | Answer |
 |---|---|---|
-| 1 | What does BantayBuhay2025 implement, and what's its stack? | A webcam gesture and face recognition prototype with mock auth and data. Next.js 16, React 19, shadcn/ui, Flask, MediaPipe, dlib, MySQL schema. See [AUDIT.md](AUDIT.md) |
-| 2 | Real CCTV feeds, or simulated? | **Nothing in either repo gives real camera access, so I recommend simulating.** Use ffmpeg to loop recorded clips through MediaMTX as RTSP, labeled "Simulated feed" in the UI. Real feeds can replace them later without pipeline changes. Using LGU cameras would need a formal arrangement under NPC Circular 2024-02 |
-| 3 | Which incident types for the MVP? | **Recommended:** fire and smoke, person down, flood, SOS gesture. **First stretch:** vehicular accident. **Later:** crowd surge. **Collapse:** manual report only. Depends on your deadline |
-| 4 | Can the current EC2 handle real-time inference? | **Can't answer yet.** I have no access to it, and the AWS CLI isn't installed here. Send me its type and region. Then a one-hour benchmark on a `c7i.2xlarge` (about $0.41) answers the question with data |
-| 5 | Do we have a domain? | **Need your answer.** I have no record of one. `sslip.io` works as a stopgap |
-| 6 | Judging criteria and deadline? | **Need your answer.** Milestones below are in working days, so they can be fitted to the date |
+| 1 | What does BantayBuhay2025 implement, and what's its stack? | **Answered.** A webcam gesture and face recognition prototype with mock auth and data. See [AUDIT.md](AUDIT.md) |
+| 2 | Real CCTV feeds, or simulated? | **Simulated for now, confirmed by you.** The long-term system uses your own cameras (see [INFRASTRUCTURE.md](INFRASTRUCTURE.md)) |
+| 3 | Which incident types for the MVP? | **Confirmed by you:** fire and smoke, person down, flood, SOS gesture. First stretch: vehicular accident |
+| 4 | Can the current EC2 handle real-time inference? | **Still open.** The region is Singapore, but I need the instance type and access. A benchmark up to $5 is approved |
+| 5 | Do we have a domain? | **No.** Use `<elastic-ip>.sslip.io` for HTTPS for now |
+| 6 | Judging criteria and deadline? | **Answered above** |
 
-## Decisions needed from you
+## Confirmed for now, open to change
+
+**You asked to be reminded of these regularly, because they may change.** Each status update repeats this list.
+
+| Choice | Current value | What would change it |
+|---|---|---|
+| Video source | Simulated feeds | A purchased RTSP camera arrives in time. The pipeline stays the same |
+| MVP incident types | Fire and smoke, person down, flood, SOS gesture | Interview findings or time. **Flood is the first cut** if the schedule slips |
+
+## Decisions still needed
 
 | # | Decision | Recommendation | Why it matters |
 |---|---|---|---|
-| 1 | **How does a civilian get linked to an incident?** Your brief says responders see "relevant civilians", but a fire on camera doesn't identify anyone | **No live facial recognition in the MVP.** Link through civilian SOS, operator search, and a responder scanning the civilian's QR medical ID. Each link is explicit and audited | This drives the data model and the main privacy risk. Face recognition on public CCTV tied to medical records is the riskiest feature possible under RA 10173. It can stay as future opt-in research |
-| 2 | **Approve the stack** | As listed in [INFRASTRUCTURE.md](INFRASTRUCTURE.md) | Blocks implementation |
-| 3 | **Approve paid AWS use** | Up to $5 for the benchmark now, with a budget for the hackathon set after the benchmark | Your rules require approval |
-| 4 | **Face photos in git history** | Leave history intact while private. Before going public, purge them with `git filter-repo` and force-push, which needs your explicit go-ahead. Separately, ask Vincent to remove them from public upstream | This conflicts with "keep upstream history" |
-| 5 | **Repo visibility and license** | Stay private until Vincent confirms permission in writing, then choose a license | If judges need access, they can be added as collaborators |
-| 6 | **Merge the docs branch** | Merge once you've reviewed | These documents are on `docs/phase-0`, not yet on `main` |
+| 1 | **Are you registered?** | Submit by Nov 9. Nothing else counts if this is missed | Hard cutoff |
+| 2 | **How does a civilian get linked to an incident?** Owning the cameras doesn't settle this, because a camera still can't identify the people it sees | **No live facial recognition.** Use civilian SOS, operator search and QR medical IDs. Each link is explicit and audited | Drives the data model. Facial recognition tied to medical records stays high-risk under RA 10173 whoever owns the camera, and it invites hard Q&A |
+| 3 | **Approve the stack and this schedule** | As listed in [INFRASTRUCTURE.md](INFRASTRUCTURE.md) | Blocks implementation |
+| 4 | **EC2 instance type and access** | Send the type and public IP from the EC2 console, plus the SSH username | Blocks the benchmark |
+| 5 | **Face photos in git history** | Leave history intact while private. Purge before going public, which needs a force-push and your go-ahead. Ask Vincent to remove them from public upstream | Conflicts with "keep upstream history" |
+| 6 | **Repo visibility and license** | Stay private until Vincent confirms in writing | If judges need access, add them as collaborators |
+| 7 | **Merge the docs branch** | Merge after review | These documents are on `docs/phase-0`, not on `main` |
 
-## MVP milestones
+## Schedule
 
-Estimates assume about two full-time developers and are rough. Each milestone ends with something that can be demonstrated.
+The earlier estimate of 13 to 15 working days for two full-time developers **doesn't fit a production-grade build before the Nov 17 deck.** So this plan targets a demo-ready slice by Nov 16, and production hardening continues after the event.
 
-| # | Milestone | Days | Done when |
-|---|---|---|---|
-| M0 | **Decisions and benchmark** | 0.5 to 1 | The decisions above are made; CPU or GPU is chosen from measurements |
-| M1 | **Foundation**: monorepo, Compose, CI, deploy to EC2, health checks, hardening | 1.5 | A push to `main` deploys a hello-world stack over HTTPS, and a failed health check rolls back automatically |
-| M2 | **Core domain**: database, auth, four-role RBAC, seed data, incident status flow | 2 | All 20 seeded accounts log in, and tests prove each role's permissions |
-| M3 | **Map and real-time**: Kabankalan map, 32 barangays, cameras, severity markers, Socket.IO alerts, acknowledge and assign | 2 | An incident created through the API appears on another user's map within 1 second, on the same network |
-| M4 | **Detection**: simulated cameras, inference service, MVP incident types, persistence rule, verification queue | 3 | A recorded fire clip creates a located incident with a snapshot, and low-confidence detections go to the queue |
-| M5 | **Medical context**: civilian profiles, consent, encryption, access policy, audit log, responder view | 2 | Tests prove a responder sees data only while assigned to an active incident, every read is logged, and the database holds only ciphertext |
-| M6 | **Polish and proof**: responsive UI from 320px to ultrawide, WCAG AA checks, evaluation numbers, docs, demo rehearsal | 2 to 3 | The demo script runs end to end twice in a row, and the results table contains measured numbers |
+### Team track (earns most of the score)
 
-**Total: about 13 to 15 working days.** A shorter deadline means cutting in this order: flood, then QR scanning, then SOS gesture polish. Fire, person down, operator flow and the medical access rules are the core story, so they stay.
+| Dates | Task | Done when |
+|---|---|---|
+| Nov 7 to 9 | Confirm team and coach, write and submit the concept proposal | Submission confirmed |
+| Nov 8 to 14 | Interview Kabankalan's City DRRM office, responders and residents. Record response times, current process, past incidents and needs | Named sources and specific findings for the deck |
+| Nov 10 to 15 | Cost model from real quotes: camera, networking, compute, per-site and per-year costs. Pilot plan: one site, who funds it, who operates it | One-page cost table and pilot plan |
+| Nov 12 to 17 | Finalist registration, security questions, laptop declaration. Declare any laptop you'll bring | Registration confirmed |
+| Nov 14 to 17 | Build the deck and submit | Submitted by Nov 17, 11:59 PM |
+| Nov 18 to 20 | Timed rehearsals (under 4:50), Q&A drills, final deck edits | Final deck in by 12:30 PM on Nov 20 |
+
+### Build track (supports feasibility)
+
+**Local first until Nov 11.** Docker on your laptop is free, and this avoids spending credit before finalists are announced. Deploy to AWS after that.
+
+| Dates | Milestone | Done when |
+|---|---|---|
+| Nov 7 to 8 | **M0, M1 Foundation:** benchmark, monorepo, Compose, CI, health checks | Stack runs locally, CI passes, CPU or GPU chosen from measurements |
+| Nov 8 to 10 | **M2 Core domain:** database, auth, four-role RBAC, seed data, status flow | All 20 seeded accounts log in, and tests prove role permissions |
+| Nov 10 to 12 | **M3 Map and real-time:** 32 barangays, cameras, markers, live alerts, acknowledge and assign | An incident appears live on another user's map |
+| Nov 11 to 14 | **M4 Detection,** in this order: fire and smoke, person down, SOS gesture, flood. Includes the verification queue | A recorded fire clip creates a located incident, and low-confidence detections go to the queue |
+| Nov 12 | **Deploy:** EC2 hardening, HTTPS, CI/CD with rollback | The app runs on `sslip.io` over HTTPS |
+| Nov 13 to 15 | **M5 Medical context:** profiles, consent, encryption, access rule, audit log | Tests prove a responder sees data only while assigned to an active incident, and that every read is logged |
+| Nov 15 to 16 | **M6 Demo:** UI polish, measured results, demo video | 30 to 45 second clip recorded, in time for the Nov 17 deck |
+
+**If time runs short, cut in this order:** flood, then QR scanning, then SOS polish, then CI/CD rollback. Fire, person down, the operator flow and medical access rules stay. These dates assume focused full-time work, so they'll need to move if the team is also in classes.
+
+**Deferred until after Nov 21:** full WCAG audit, full research paper, OpenAPI polish, the ultrawide layout and zero-downtime tuning. Your brief still requires these; they just don't affect the pitch.
 
 ### Seed data
 
-Seed 2 Admin, 5 DRRM Operator, 3 Responder and 10 Civilian accounts, all fictional. The seed script generates random passwords and writes them to a git-ignored file, which `.gitignore` already covers. Medical data is invented, and no real person's details or photos are used.
+Seed 2 Admin, 5 DRRM Operator, 3 Responder and 10 Civilian accounts, all fictional. The seed script generates random passwords and writes them to a file that `.gitignore` already covers. No real person's details or photos are used.
 
 ### Proposed repository layout
 
@@ -61,9 +129,9 @@ legacy/              Upstream prototype, moved here for reference
 In priority order:
 
 1. Vehicular accident detection
-2. SMS and email alerts (SMS providers cost money, so this needs your approval)
-3. PWA with installable responder view and push notifications
-4. Real RTSP camera, if the team or LGU can provide one with proper authorization
+2. A real purchased camera in the demo
+3. SMS and email alerts (SMS providers cost money, so this needs your approval)
+4. PWA with installable responder view and push notifications
 5. Crowd surge detection
 6. Capacitor mobile wrapper
 7. MFA for admins and operators
@@ -73,30 +141,23 @@ In priority order:
 
 Before any real deployment:
 
-- LGU agreement, Data Protection Officer, privacy impact assessment and legal review
-- Multi-AZ hosting and managed database
-- Field evaluation on real Kabankalan camera footage
+- Pre-incubation or pilot partner, which the rubric specifically rewards planning for
+- Data Protection Officer, privacy impact assessment and legal review
+- Multi-AZ hosting and a managed database
+- Field evaluation on footage from your own cameras
 - Operator training and a defined manual fallback
 - Independent security testing
-
-## Documentation plan
-
-| Document | When |
-|---|---|
-| Technical README | M1, updated each milestone |
-| OpenAPI reference | Generated from M2 onward |
-| Deployment runbook | M1, based on [EC2-HARDENING.md](EC2-HARDENING.md) |
-| Research paper: Introduction, Related Work, Methodology, Architecture | Drafted from M0, building on your existing paper |
-| Research paper: AI Model and Evaluation, Testing, Results, Limitations | M6, with measured results only |
 
 ## Top risks
 
 | Risk | Impact | Mitigation |
 |---|---|---|
-| False alarms during the live demo | High | Rehearsed clips, tuned thresholds, verification queue shown as a feature |
-| Venue internet fails | High | Phone hotspot backup, plus a recorded demo video as a fallback |
-| Model underperforms on some classes | Medium | Fire and person down first; report weak results honestly |
-| GPU quota isn't granted in time | Medium | CPU-first design; request quota on day 0 |
-| Medical access bug | High | Single policy function with tests written first, reviewed before merge |
-| Forgotten instances run up costs | Medium | AWS Budget alerts; stop GPU instances after each session |
-| Scope exceeds the deadline | High | Fixed cut order above |
+| Registration missed on Nov 9 | **Fatal** | Do it first |
+| No verified local problem evidence | High, on 50% of the score | Interviews start Nov 8 |
+| Build takes time from pitch work | High | Pitch tasks take priority, and the build has a fixed cut order |
+| Video won't play on venue AV | Medium | Ask organizers; carry screenshots in the deck as backup |
+| Going over 5 minutes | Medium | Timed rehearsals under 4:50 |
+| Hard Q&A on privacy or surveillance | Medium | No facial recognition, and a prepared RA 10173 answer |
+| Model underperforms on a class | Medium | Fire and person down first; report weak results honestly |
+| AWS credit burned by idle instances | Medium | Local first, Budget alerts, stop instances after each session |
+| Medical access bug | High | One policy function with tests written first |
