@@ -10,7 +10,7 @@
 | Map | MapLibre GL with a self-hosted Negros map extract | Live vector overlays, no API key, works without a third-party tile service |
 | API | Fastify (TypeScript) with Zod | OpenAPI generated from the validation schemas |
 | AI service | Python FastAPI with ONNX Runtime | Same service runs on CPU or GPU |
-| Detector | D-FINE or RF-DETR (Apache 2.0), chosen by benchmark | Avoids AGPL obligations on your application |
+| Detector | D-FINE (Apache 2.0), sized after accuracy testing. D-FINE-N was fastest on CPU | Avoids AGPL obligations on your application |
 | Database | PostgreSQL with PostGIS, Redis | Barangay lookups and nearest-responder queries built in |
 | Real-time | Socket.IO, with PostgreSQL as the source of truth | Rooms and delivery acknowledgements for critical alerts |
 | Video | MediaMTX gateway | Simulated and real cameras use the same pipeline |
@@ -332,9 +332,11 @@ Prices are AWS on-demand Linux in Singapore (`ap-southeast-1`), from AWS's publi
 
 **How to decide:** run a one-hour benchmark on `c7i.2xlarge`, for about $0.41 plus a little storage. You've approved up to $5, which is about 12 hours. The target is 4 simulated cameras at 2 fps each, or 8 inferences per second. Move to Option B only if that fails.
 
+**Result, 2026-11-07: Option A passed.** D-FINE-N handled 8 cameras at 2 fps on CPU with no dropped frames and a p95 of 234 ms. See the [full results and their limits](../benchmarks/cpu-latency-2026-11-07.md).
+
 **Account limits, checked 2026-11-07:**
 
-- **GPU quota is 0 vCPUs in Singapore,** so `g4dn.xlarge` can't launch until AWS approves an increase. Requesting one costs nothing, but approval can take time.
+- **GPU quota was 0 vCPUs in Singapore,** so `g4dn.xlarge` can't launch until AWS approves an increase. A request for 4 vCPUs was filed on 2026-11-07 and was pending when last checked.
 - **Standard quota is 8 vCPUs.** A `c7i.2xlarge` uses all 8, so it can't run alongside another instance. Running a `t3.large` with it would need an increase to at least 10.
 - **A $50 monthly budget already exists.** Alerts don't stop spending, so the plan below can pass $50 if the GPU fallback is used.
 
@@ -414,7 +416,7 @@ Docker Compose, Nginx and Let's Encrypt, as you suggested. Only Nginx publishes 
 
 | Option | Security | Notes |
 |---|---|---|
-| **Hosted runners + SSM (recommended)** | Best: port 22 stays closed, short-lived credentials through GitHub OIDC | The IAM role and OIDC setup take a little longer |
+| **Hosted runners + SSM (recommended)** | Best: port 22 stays closed, short-lived credentials through GitHub OIDC | The IAM role and OIDC setup take a little longer. Also the way to reach the server, because the team's current network blocks outbound port 22 |
 | Hosted runners + SSH | Fair: port 22 must accept GitHub's large, changing IP ranges, plus a long-lived key | Simplest; use a restricted deploy user if chosen |
 | Self-hosted runner on the instance | Weakest: CI jobs run on the production host | Builds compete with live inference for CPU |
 

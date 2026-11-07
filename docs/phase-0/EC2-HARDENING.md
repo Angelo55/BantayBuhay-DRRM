@@ -4,6 +4,8 @@ Step-by-step setup for the deployment host. **None of this has been run.** The c
 
 Some steps create paid resources (marked **Paid**). Replace `<placeholders>` with your values.
 
+**Your network blocks outbound port 22** (checked 2026-11-07), so SSH won't connect from there. Set up Systems Manager first (step 11) and run these commands in a Session Manager shell. In that case, skip the port 22 rule in step 1.
+
 ## 1. Security group
 
 Set these in the AWS console, under EC2 > Security Groups:

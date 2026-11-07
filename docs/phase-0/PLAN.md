@@ -50,7 +50,7 @@ The guidelines give no registration link or proposal format, so get these from t
 | 1 | What does BantayBuhay2025 implement, and what's its stack? | **Answered.** A webcam gesture and face recognition prototype with mock auth and data. See [AUDIT.md](AUDIT.md) |
 | 2 | Real CCTV feeds, or simulated? | **Simulated for now, confirmed by you.** No reconfigured CCTV is needed for the pitch or prototype: the guidelines don't require operational hardware, and recorded video can run through the same pipeline. The long-term system uses your own cameras (see [INFRASTRUCTURE.md](INFRASTRUCTURE.md)) |
 | 3 | Which incident types for the MVP? | **Confirmed by you:** fire and smoke, person down, flood, SOS gesture. First stretch: vehicular accident |
-| 4 | Can the current EC2 handle real-time inference? | **No.** The account's only instance is a stopped `t3.medium` (2 vCPU, 4 GB) named for the PESO project. It's too small and burstable, and it isn't dedicated to BantayBuhay. Use a new instance. A benchmark up to $5 is approved |
+| 4 | Can the current EC2 handle real-time inference? | **No, but a new CPU instance can.** The existing stopped `t3.medium`, named for the PESO project, is too small and isn't dedicated to BantayBuhay. A `c7i.2xlarge` met the target with no GPU: D-FINE-N handled 8 cameras at 2 fps with no dropped frames ([results](../benchmarks/cpu-latency-2026-11-07.md)). Accuracy isn't measured yet |
 | 5 | Do we have a domain? | **No.** Use `<elastic-ip>.sslip.io` for HTTPS for now |
 | 6 | Judging criteria and deadline? | **Answered above** |
 
@@ -67,7 +67,7 @@ The guidelines give no registration link or proposal format, so get these from t
 
 | # | Decision | Recommendation | Why it matters |
 |---|---|---|---|
-| 1 | **GPU quota request** | Request 4 GPU vCPUs now as a free fallback. Decide on standard vCPUs after the benchmark | A GPU can't launch without it, and approval can take time |
+| 1 | **Merge M2 into `main`** | Merge, since M2 passes CI | Keeps later work on a current base |
 | 2 | **Face photos in git history** | Leave history intact while private. Purge before going public, which needs a force-push and your go-ahead. Ask Vincent to remove them from public upstream | Conflicts with "keep upstream history" |
 | 3 | **Repo visibility and license** | Stay private until Vincent confirms in writing | If judges need access, add them as collaborators |
 | 4 | **Merge the docs branch** | Merge after review | These documents are on `docs/phase-0`, not on `main` |
@@ -95,8 +95,8 @@ The earlier estimate of 13 to 15 working days for two full-time developers **doe
 
 | Dates | Milestone | Done when |
 |---|---|---|
-| Nov 7 to 8 | **M0, M1 Foundation:** benchmark, monorepo, Compose, CI, health checks | Stack runs locally, CI passes, CPU or GPU chosen from measurements. **Done on Nov 7 except the benchmark** |
-| Nov 8 to 10 | **M2 Core domain:** database, auth, four-role RBAC, seed data, status flow | All 20 seeded accounts log in, and tests prove role permissions |
+| Nov 7 to 8 | **M0, M1 Foundation:** benchmark, monorepo, Compose, CI, health checks | Stack runs locally, CI passes, CPU or GPU chosen from measurements. **Done on Nov 7: CPU** |
+| Nov 8 to 10 | **M2 Core domain:** database, auth, four-role RBAC, seed data, status flow | All 20 seeded accounts log in, and tests prove role permissions. **Done on Nov 7,** API only, on branch `feat/core-domain` |
 | Nov 10 to 12 | **M3 Map and real-time:** 32 barangays, cameras, markers, live alerts, acknowledge and assign | An incident appears live on another user's map |
 | Nov 11 to 14 | **M4 Detection,** in this order: fire and smoke, person down, SOS gesture, flood. Includes the verification queue | A recorded fire clip creates a located incident, and low-confidence detections go to the queue |
 | Nov 12 | **Deploy:** EC2 hardening, HTTPS, CI/CD with rollback | The app runs on `sslip.io` over HTTPS |

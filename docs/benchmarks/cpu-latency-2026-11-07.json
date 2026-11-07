@@ -1,0 +1,182 @@
+{
+  "dfine_n": {
+    "size": 640,
+    "file_mb": 15.3,
+    "single_stream": {
+      "threads": 8,
+      "p50_ms": 44.3,
+      "p95_ms": 45.0,
+      "max_fps": 22.6
+    },
+    "camera_loads": [
+      {
+        "cameras": 4,
+        "threads_each": 2,
+        "fps_each": 2.0,
+        "p50_ms": 119.9,
+        "p95_ms": 123.7,
+        "dropped_pct": 0.0,
+        "memory_mb_each": 161
+      },
+      {
+        "cameras": 8,
+        "threads_each": 1,
+        "fps_each": 2.0,
+        "p50_ms": 230.8,
+        "p95_ms": 234.0,
+        "dropped_pct": 0.0,
+        "memory_mb_each": 161
+      }
+    ]
+  },
+  "dfine_n_int8": {
+    "size": 640,
+    "file_mb": 4.5,
+    "single_stream": {
+      "threads": 8,
+      "p50_ms": 150.6,
+      "p95_ms": 151.9,
+      "max_fps": 6.6
+    },
+    "camera_loads": [
+      {
+        "cameras": 4,
+        "threads_each": 2,
+        "fps_each": 2.0,
+        "p50_ms": 381.9,
+        "p95_ms": 385.5,
+        "dropped_pct": 0.0,
+        "memory_mb_each": 169
+      },
+      {
+        "cameras": 8,
+        "threads_each": 1,
+        "fps_each": 2.0,
+        "p50_ms": 982.1,
+        "p95_ms": 1210.9,
+        "dropped_pct": 31.1,
+        "memory_mb_each": 169
+      }
+    ]
+  },
+  "dfine_s": {
+    "size": 640,
+    "file_mb": 41.5,
+    "single_stream": {
+      "threads": 8,
+      "p50_ms": 98.2,
+      "p95_ms": 99.2,
+      "max_fps": 10.2
+    },
+    "camera_loads": [
+      {
+        "cameras": 4,
+        "threads_each": 2,
+        "fps_each": 2.0,
+        "p50_ms": 315.8,
+        "p95_ms": 320.5,
+        "dropped_pct": 0.0,
+        "memory_mb_each": 295
+      },
+      {
+        "cameras": 8,
+        "threads_each": 1,
+        "fps_each": 2.0,
+        "p50_ms": 862.7,
+        "p95_ms": 1092.8,
+        "dropped_pct": 18.1,
+        "memory_mb_each": 301
+      }
+    ]
+  },
+  "dfine_s_int8": {
+    "size": 640,
+    "file_mb": 11.2,
+    "single_stream": {
+      "threads": 8,
+      "p50_ms": 314.0,
+      "p95_ms": 316.6,
+      "max_fps": 3.2
+    },
+    "camera_loads": [
+      {
+        "cameras": 4,
+        "threads_each": 2,
+        "fps_each": 2.0,
+        "p50_ms": 1183.7,
+        "p95_ms": 1405.0,
+        "dropped_pct": 45.8,
+        "memory_mb_each": 279
+      },
+      {
+        "cameras": 8,
+        "threads_each": 1,
+        "fps_each": 2.0,
+        "p50_ms": 2098.0,
+        "p95_ms": 2313.4,
+        "dropped_pct": 72.2,
+        "memory_mb_each": 279
+      }
+    ]
+  },
+  "rfdetr_nano": {
+    "size": 384,
+    "file_mb": 108.1,
+    "single_stream": {
+      "threads": 8,
+      "p50_ms": 86.6,
+      "p95_ms": 87.8,
+      "max_fps": 11.5
+    },
+    "camera_loads": [
+      {
+        "cameras": 4,
+        "threads_each": 2,
+        "fps_each": 2.0,
+        "p50_ms": 292.6,
+        "p95_ms": 300.4,
+        "dropped_pct": 0.0,
+        "memory_mb_each": 289
+      },
+      {
+        "cameras": 8,
+        "threads_each": 1,
+        "fps_each": 2.0,
+        "p50_ms": 828.7,
+        "p95_ms": 1067.3,
+        "dropped_pct": 13.6,
+        "memory_mb_each": 289
+      }
+    ]
+  },
+  "rfdetr_small": {
+    "size": 512,
+    "file_mb": 114.7,
+    "single_stream": {
+      "threads": 8,
+      "p50_ms": 154.2,
+      "p95_ms": 155.7,
+      "max_fps": 6.5
+    },
+    "camera_loads": [
+      {
+        "cameras": 4,
+        "threads_each": 2,
+        "fps_each": 2.0,
+        "p50_ms": 781.4,
+        "p95_ms": 1013.0,
+        "dropped_pct": 8.1,
+        "memory_mb_each": 388
+      },
+      {
+        "cameras": 8,
+        "threads_each": 1,
+        "fps_each": 2.0,
+        "p50_ms": 1339.6,
+        "p95_ms": 1574.3,
+        "dropped_pct": 53.9,
+        "memory_mb_each": 392
+      }
+    ]
+  }
+}
