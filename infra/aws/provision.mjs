@@ -15,7 +15,9 @@ const ROOT = join(HERE, "..", "..");
 const REGION = "ap-southeast-1";
 const ACCOUNT = "195170887047";
 const BUCKET = `bantaybuhay-deploy-${ACCOUNT}`;
-const REPO = "Angelo55/BantayBuhay-DRRM";
+// GitHub signs this repository's tokens with immutable IDs (owner@id/repo@id), so a renamed or
+// re-created repository with the same name can't match.
+const REPO = "Angelo55@132664523/BantayBuhay-DRRM@1449058451";
 const OIDC = "token.actions.githubusercontent.com";
 const AWS = process.platform === "win32" && existsSync("C:\\Program Files\\Amazon\\AWSCLIV2\\aws.exe")
   ? "C:\\Program Files\\Amazon\\AWSCLIV2\\aws.exe"
