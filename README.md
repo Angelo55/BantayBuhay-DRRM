@@ -2,7 +2,46 @@
 
 AI-assisted Disaster Risk Reduction and Management (DRRM) incident detection and response platform. The primary deployment target and map coverage is Kabankalan City, Negros Occidental.
 
-> **Status: Phase 0 baseline. Not production-ready.** The code here is the unmodified upstream prototype, plus a cleanup commit. Authentication and data are mocked. See [the Phase 0 audit](docs/phase-0/AUDIT.md) before running or reusing any of it.
+> **Status: early foundation. Not production-ready.** The services start and pass health checks, but there are no user-facing features yet. The upstream prototype is kept in [`legacy/`](legacy/) for reference only; see [the Phase 0 audit](docs/phase-0/AUDIT.md) before reusing any of it.
+
+## Run it locally
+
+You need Docker Desktop and Git Bash. This builds and starts the stack, creates a `.env` with random passwords if there isn't one, and checks that everything works:
+
+```bash
+bash infra/smoke.sh
+```
+
+Then open <http://127.0.0.1:8080>. To stop the stack:
+
+```bash
+docker compose down
+```
+
+## Develop
+
+```bash
+npm install
+```
+
+```bash
+npm run lint && npm run typecheck && npm test && npm run build
+```
+
+For the inference service, in `services/inference`:
+
+```bash
+python -m venv .venv && .venv/Scripts/python -m pip install -r requirements-dev.txt && .venv/Scripts/python -m pytest
+```
+
+| Path | Purpose |
+| --- | --- |
+| `apps/web` | React web app |
+| `apps/api` | Fastify API |
+| `services/inference` | FastAPI inference service |
+| `packages/shared` | Types shared by the web app and API |
+| `infra` | Nginx configuration and smoke test |
+| `legacy` | Upstream prototype, not built or run |
 
 ## Credits
 

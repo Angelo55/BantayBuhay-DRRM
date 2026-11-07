@@ -1,0 +1,64 @@
+import { describe, expect, it } from "vitest";
+import { buildApp } from "./app.js";
+
+const healthy = async () => {};
+const failing = async () => {
+  throw new Error("postgres://user:secret@db refused");
+};
+
+describe("GET /api/healthz", () => {
+  it("reports the process alive even when a dependency is down", async () => {
+    const app = buildApp({ checks: { postgres: failing } });
+
+    const response = await app.inject({ method: "GET", url: "/api/healthz" });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ status: "ok" });
+  });
+});
+
+describe("GET /api/readyz", () => {
+  it("is ready when every dependency responds", async () => {
+    const app = buildApp({ checks: { postgres: healthy, redis: healthy } });
+
+    const response = await app.inject({ method: "GET", url: "/api/readyz" });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      status: "ready",
+      checks: { postgres: "ok", redis: "ok" },
+    });
+  });
+
+  it("returns 503 and names the dependency that failed", async () => {
+    const app = buildApp({ checks: { postgres: failing, redis: healthy } });
+
+    const response = await app.inject({ method: "GET", url: "/api/readyz" });
+
+    expect(response.statusCode).toBe(503);
+    expect(response.json()).toEqual({
+      status: "not_ready",
+      checks: { postgres: "down", redis: "ok" },
+    });
+  });
+
+  it("does not expose error details to callers", async () => {
+    const app = buildApp({ checks: { postgres: failing } });
+
+    const response = await app.inject({ method: "GET", url: "/api/readyz" });
+
+    expect(response.body).not.toContain("secret");
+  });
+
+  it("treats a dependency that hangs as down", async () => {
+    const app = buildApp({
+      checks: { postgres: () => new Promise(() => {}) },
+      checkTimeoutMs: 10,
+    });
+
+    const response = await app.inject({ method: "GET", url: "/api/readyz" });
+
+    expect(response.statusCode).toBe(503);
+    expect(response.json().checks.postgres).toBe("down");
+  });
+});

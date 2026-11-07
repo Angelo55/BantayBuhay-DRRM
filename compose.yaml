@@ -1,0 +1,100 @@
+name: bantaybuhay
+
+# Only nginx publishes a port. Everything else stays on private networks.
+services:
+  nginx:
+    build:
+      context: .
+      dockerfile: infra/nginx/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "${HTTP_BIND:-127.0.0.1:8080}:80"
+    networks: [edge]
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://bantaybuhay:${POSTGRES_PASSWORD:?set in .env}@postgres:5432/bantaybuhay
+      REDIS_URL: redis://:${REDIS_PASSWORD:?set in .env}@redis:6379
+    networks: [edge, backend]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/api/readyz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+
+  inference:
+    build: services/inference
+    restart: unless-stopped
+    networks: [backend]
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=3)"
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+
+  postgres:
+    image: postgis/postgis:17-3.7-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: bantaybuhay
+      POSTGRES_DB: bantaybuhay
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks: [backend]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bantaybuhay -d bantaybuhay"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:8.8-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:?set in .env}", "--appendonly", "yes"]
+    environment:
+      REDISCLI_AUTH: ${REDIS_PASSWORD:?set in .env}
+    volumes:
+      - redis_data:/data
+    networks: [backend]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+networks:
+  edge:
+  backend:
+    internal: true
+
+volumes:
+  postgres_data:
+  redis_data:
