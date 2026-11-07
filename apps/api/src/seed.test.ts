@@ -39,8 +39,19 @@ describe("seed", () => {
     expect(new Set(accounts.map((item) => item.password)).size).toBe(20);
   });
 
+  it("places every civilian and camera inside a Kabankalan barangay", async () => {
+    await seed(db);
+    const { rows } = await db.query(
+      `SELECT (SELECT count(*)::int FROM civilian_profiles WHERE barangay_psgc IS NULL) AS "civiliansWithout",
+              (SELECT count(DISTINCT barangay_psgc)::int FROM civilian_profiles) AS "civilianBarangays",
+              (SELECT count(*)::int FROM cameras c JOIN barangays b ON b.psgc = c.barangay_psgc
+               WHERE ST_Contains(b.boundary, c.location)) AS "camerasInside"`,
+    );
+    expect(rows[0]).toEqual({ civiliansWithout: 0, civilianBarangays: 10, camerasInside: 6 });
+  });
+
   it("leaves an existing database alone", async () => {
     await seed(db);
-    expect(await seed(db)).toEqual({ accounts: [], skipped: true });
+    expect(await seed(db)).toEqual({ accounts: [], skipped: true, cameras: 0 });
   });
 });

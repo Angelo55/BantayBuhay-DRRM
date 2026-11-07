@@ -2,7 +2,7 @@
 
 AI-assisted Disaster Risk Reduction and Management (DRRM) incident detection and response platform. The primary deployment target and map coverage is Kabankalan City, Negros Occidental.
 
-> **Status: early build. Not production-ready.** The API has logins, roles, seeded test accounts and the incident status flow, but there's no user interface for them yet. The upstream prototype is kept in [`legacy/`](legacy/) for reference only; see [the Phase 0 audit](docs/phase-0/AUDIT.md) before reusing any of it.
+> **Status: early build. Not production-ready.** Operators can sign in, see the Kabankalan map, and receive, acknowledge, verify, assign and dispatch incidents live. Responders see only their own incidents. Camera detection and medical profiles come next. See [DESIGN.md](DESIGN.md) for the interface design. The upstream prototype is kept in [`legacy/`](legacy/) for reference only; see [the Phase 0 audit](docs/phase-0/AUDIT.md) before reusing any of it.
 
 ## Run it locally
 

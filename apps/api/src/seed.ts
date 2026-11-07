@@ -35,9 +35,26 @@ export interface SeededAccount {
   role: Role;
 }
 
+// Simulated cameras sit at a point guaranteed to be inside each barangay's boundary.
+const CAMERA_BARANGAYS = ["Barangay 1", "Binicuil", "Tagukon", "Hilamonan", "Tampalon", "Camansi"];
+
+async function seedCameras(db: pg.Pool): Promise<number> {
+  const existing = await db.query("SELECT 1 FROM cameras LIMIT 1");
+  if (existing.rowCount) return 0;
+  const { rowCount } = await db.query(
+    `INSERT INTO cameras (name, barangay_psgc, location, stream_path, is_simulated)
+     SELECT 'Simulated camera, ' || name, psgc, ST_PointOnSurface(boundary),
+            'sim/' || lower(regexp_replace(name, '[^A-Za-z0-9]+', '-', 'g')), true
+     FROM barangays WHERE name = ANY($1)`,
+    [CAMERA_BARANGAYS],
+  );
+  return rowCount ?? 0;
+}
+
 export async function seed(db: pg.Pool) {
+  const cameras = await seedCameras(db);
   const existing = await db.query("SELECT 1 FROM users LIMIT 1");
-  if (existing.rowCount) return { accounts: [] as SeededAccount[], skipped: true };
+  if (existing.rowCount) return { accounts: [] as SeededAccount[], skipped: true, cameras };
 
   const accounts: SeededAccount[] = [];
   const client = await db.connect();
@@ -59,10 +76,12 @@ export async function seed(db: pg.Pool) {
         ]);
       }
       if (person.role === "civilian") {
+        // Spread civilians across barangays in a fixed order, so reruns match.
         await client.query(
-          `INSERT INTO civilian_profiles (user_id, birth_date, medical_id_token)
-           VALUES ($1, $2, $3)`,
-          [id, person.birthDate, randomBytes(24).toString("base64url")],
+          `INSERT INTO civilian_profiles (user_id, birth_date, medical_id_token, barangay_psgc)
+           VALUES ($1, $2, $3, (SELECT psgc FROM barangays ORDER BY name
+             OFFSET $4 % (SELECT count(*) FROM barangays) LIMIT 1))`,
+          [id, person.birthDate, randomBytes(24).toString("base64url"), accounts.length * 3],
         );
       }
       accounts.push({ email, password, fullName: person.name, role: person.role });
@@ -74,7 +93,7 @@ export async function seed(db: pg.Pool) {
   } finally {
     client.release();
   }
-  return { accounts, skipped: false };
+  return { accounts, skipped: false, cameras };
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

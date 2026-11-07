@@ -96,8 +96,8 @@ The earlier estimate of 13 to 15 working days for two full-time developers **doe
 | Dates | Milestone | Done when |
 |---|---|---|
 | Nov 7 to 8 | **M0, M1 Foundation:** benchmark, monorepo, Compose, CI, health checks | Stack runs locally, CI passes, CPU or GPU chosen from measurements. **Done on Nov 7: CPU** |
-| Nov 8 to 10 | **M2 Core domain:** database, auth, four-role RBAC, seed data, status flow | All 20 seeded accounts log in, and tests prove role permissions. **Done on Nov 7,** API only, on branch `feat/core-domain` |
-| Nov 10 to 12 | **M3 Map and real-time:** 32 barangays, cameras, markers, live alerts, acknowledge and assign | An incident appears live on another user's map |
+| Nov 8 to 10 | **M2 Core domain:** database, auth, four-role RBAC, seed data, status flow | All 20 seeded accounts log in, and tests prove role permissions. **Done on Nov 7,** merged to `main` |
+| Nov 10 to 12 | **M3 Map and real-time:** 32 barangays, cameras, markers, live alerts, acknowledge and assign | An incident appears live on another user's map. **Done on Nov 7:** it appeared within 1 second in a browser test |
 | Nov 11 to 14 | **M4 Detection,** in this order: fire and smoke, person down, SOS gesture, flood. Includes the verification queue | A recorded fire clip creates a located incident, and low-confidence detections go to the queue |
 | Nov 12 | **Deploy:** EC2 hardening, HTTPS, CI/CD with rollback | The app runs on `sslip.io` over HTTPS |
 | Nov 13 to 15 | **M5 Medical context:** profiles, consent, encryption, access rule, audit log | Tests prove a responder sees data only while assigned to an active incident, and that every read is logged |

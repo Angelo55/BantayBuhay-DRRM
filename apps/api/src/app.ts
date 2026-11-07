@@ -13,6 +13,9 @@ import type pg from "pg";
 import { adminRoutes } from "./admin.js";
 import { authRoutes, createGuards } from "./auth.js";
 import { incidentRoutes } from "./incidents.js";
+import { mapRoutes } from "./map.js";
+import { attachRealtime } from "./realtime.js";
+import type { ServerOptions } from "socket.io";
 
 export type HealthCheck = () => Promise<unknown>;
 
@@ -24,6 +27,8 @@ export interface AppOptions {
   cookieSecure?: boolean;
   sessionTtlMs?: number;
   loginAttemptsPerMinute?: number;
+  // Shares live updates across API instances, for example during a blue/green deploy.
+  realtimeAdapter?: ServerOptions["adapter"];
 }
 
 const TWELVE_HOURS_MS = 12 * 60 * 60 * 1000;
@@ -36,6 +41,7 @@ export function buildApp({
   cookieSecure = true,
   sessionTtlMs = TWELVE_HOURS_MS,
   loginAttemptsPerMinute = 10,
+  realtimeAdapter,
 }: AppOptions) {
   // Nginx is the only route in, so the address it forwards can be trusted.
   const app = Fastify({ logger, trustProxy: true }).withTypeProvider<ZodTypeProvider>();
@@ -88,7 +94,9 @@ export function buildApp({
   const guards = createGuards(db);
   app.register(authRoutes, { db, guards, cookieSecure, sessionTtlMs, loginAttemptsPerMinute });
   app.register(adminRoutes, { db, guards });
-  app.register(incidentRoutes, { db, guards });
+  const notify = attachRealtime(app, db, realtimeAdapter);
+  app.register(incidentRoutes, { db, guards, notify });
+  app.register(mapRoutes, { db, guards });
 
   app.get(
     "/api/openapi.json",

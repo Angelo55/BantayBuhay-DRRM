@@ -16,21 +16,26 @@ declare module "fastify" {
   }
 }
 
+export const SESSION_COOKIE = COOKIE;
+
 const hashToken = (token: string) => createHash("sha256").update(token).digest("hex");
+
+// The signed-in user for a session token, or null if it's unknown, expired or disabled.
+export async function findSessionUser(db: pg.Pool, token: string): Promise<PublicUser | null> {
+  const { rows } = await db.query<PublicUser>(
+    `SELECT ${USER_COLUMNS} FROM sessions
+     JOIN users ON users.id = sessions.user_id
+     WHERE sessions.token_hash = $1 AND sessions.expires_at > now()
+       AND users.disabled_at IS NULL`,
+    [hashToken(token)],
+  );
+  return rows[0] ?? null;
+}
 
 export function createGuards(db: pg.Pool) {
   async function authenticate(request: FastifyRequest, reply: FastifyReply) {
     const token = request.cookies[COOKIE];
-    if (token) {
-      const { rows } = await db.query<PublicUser>(
-        `SELECT ${USER_COLUMNS} FROM sessions
-         JOIN users ON users.id = sessions.user_id
-         WHERE sessions.token_hash = $1 AND sessions.expires_at > now()
-           AND users.disabled_at IS NULL`,
-        [hashToken(token)],
-      );
-      request.user = rows[0] ?? null;
-    }
+    if (token) request.user = await findSessionUser(db, token);
     if (!request.user) return reply.code(401).send({ error: "Sign in required" });
   }
 

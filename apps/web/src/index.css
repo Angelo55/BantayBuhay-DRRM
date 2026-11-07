@@ -1,6 +1,51 @@
 @import "tailwindcss";
 
+/* Tokens and their reasons are in DESIGN.md. */
+@theme {
+  --font-sans: "Atkinson Hyperlegible Next", system-ui, sans-serif;
+  --color-ground: #0f1b24;
+  --color-surface: #16252f;
+  --color-raised: #1d3140;
+  --color-line: #3a5262;
+  --color-ink: #e8eef1;
+  --color-muted: #9fb2bd;
+  --color-action: #6cc4d4;
+  --color-sev-low: #5aa9f0;
+  --color-sev-medium: #f2c230;
+  --color-sev-high: #f28c28;
+  --color-sev-critical: #ff6166;
+}
+
+html {
+  color-scheme: dark;
+}
+
 body {
-  background-color: var(--color-slate-950);
-  color: var(--color-slate-100);
+  background-color: var(--color-ground);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-action);
+  outline-offset: 2px;
+}
+
+@layer components {
+  .field {
+    @apply block min-h-11 w-full rounded-md border border-line bg-raised px-3 py-2 text-[15px] text-ink;
+  }
+  .button-primary {
+    @apply inline-flex min-h-11 items-center justify-center rounded-md bg-action px-4 text-[15px] font-bold text-ground hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .button-secondary {
+    @apply inline-flex min-h-11 items-center justify-center rounded-md border border-action px-4 text-[15px] font-bold text-ink hover:bg-raised disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .button-quiet {
+    @apply inline-flex min-h-11 items-center justify-center rounded-md px-3 text-[15px] text-muted underline-offset-4 hover:text-ink hover:underline disabled:cursor-not-allowed disabled:opacity-50;
+  }
+}
+
+.maplibregl-ctrl-attrib {
+  font-size: 11px;
 }

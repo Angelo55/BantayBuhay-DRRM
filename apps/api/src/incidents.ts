@@ -11,11 +11,19 @@ import type pg from "pg";
 import { z } from "zod";
 import { audit } from "./audit.js";
 import type { Guards } from "./auth.js";
+import type { Notifier } from "./realtime.js";
 
 const COLUMNS = `incidents.id, incidents.incident_type AS "incidentType", incidents.severity,
   incidents.status, incidents.description, ST_Y(incidents.location) AS latitude,
   ST_X(incidents.location) AS longitude, incidents.barangay_psgc AS "barangayPsgc",
-  incidents.detected_at AS "detectedAt", incidents.resolved_at AS "resolvedAt"`;
+  barangays.name AS "barangayName", incidents.detected_at AS "detectedAt",
+  incidents.acknowledged_at AS "acknowledgedAt", incidents.resolved_at AS "resolvedAt",
+  COALESCE((SELECT json_agg(json_build_object('id', users.id, 'fullName', users.full_name)
+              ORDER BY assignments.assigned_at)
+            FROM assignments JOIN users ON users.id = assignments.responder_id
+            WHERE assignments.incident_id = incidents.id AND assignments.released_at IS NULL),
+           '[]') AS responders`;
+const FROM = "incidents LEFT JOIN barangays ON barangays.psgc = incidents.barangay_psgc";
 
 const ASSIGNABLE: readonly IncidentStatus[] = ["verified", "dispatched", "on_scene"];
 const RESPONDER_MAY_SET: readonly IncidentStatus[] = ["on_scene", "resolved"];
@@ -67,7 +75,7 @@ async function isAssigned(db: pg.Pool | pg.PoolClient, incidentId: string, respo
 }
 
 async function readIncident(db: pg.Pool | pg.PoolClient, id: string) {
-  const { rows } = await db.query(`SELECT ${COLUMNS} FROM incidents WHERE id = $1`, [id]);
+  const { rows } = await db.query(`SELECT ${COLUMNS} FROM ${FROM} WHERE incidents.id = $1`, [id]);
   return rows[0];
 }
 
@@ -104,11 +112,16 @@ async function changeStatus(
        WHERE id = $1`,
       [id, to],
     );
+    // Kept so the released responders still hear that their incident closed.
+    let released: string[] = [];
     if (CLOSED.includes(to)) {
-      await client.query(
-        "UPDATE assignments SET released_at = now() WHERE incident_id = $1 AND released_at IS NULL",
+      const result = await client.query<{ responderId: string }>(
+        `UPDATE assignments SET released_at = now()
+         WHERE incident_id = $1 AND released_at IS NULL
+         RETURNING responder_id AS "responderId"`,
         [id],
       );
+      released = result.rows.map((row) => row.responderId);
     }
     await client.query(
       `INSERT INTO incident_events (incident_id, actor_id, from_status, to_status, note)
@@ -122,7 +135,7 @@ async function changeStatus(
       entityId: id,
       metadata: { from, to },
     });
-    return readIncident(client, id);
+    return { incident: await readIncident(client, id), released };
   });
 }
 
@@ -155,13 +168,19 @@ async function assignResponder(db: pg.Pool, user: PublicUser, id: string, respon
       entityId: id,
       metadata: { responderId },
     });
-    return rows[0];
+    return { assignment: rows[0], incident: await readIncident(client, id) };
   });
 }
 
-export const incidentRoutes: FastifyPluginAsyncZod<{ db: pg.Pool; guards: Guards }> = async (
+export interface IncidentRouteOptions {
+  db: pg.Pool;
+  guards: Guards;
+  notify: Notifier;
+}
+
+export const incidentRoutes: FastifyPluginAsyncZod<IncidentRouteOptions> = async (
   app,
-  { db, guards },
+  { db, guards, notify },
 ) => {
   const operators = guards.requireRole("admin", "operator");
   const staff = guards.requireRole("admin", "operator", "responder");
@@ -193,8 +212,11 @@ export const incidentRoutes: FastifyPluginAsyncZod<{ db: pg.Pool; guards: Guards
       const user = request.user!;
       const incident = await inTransaction(db, async (client) => {
         const { rows } = await client.query<{ id: string }>(
-          `INSERT INTO incidents (incident_type, severity, description, location, created_by)
-           VALUES ($1, $2, $3, ST_SetSRID(ST_MakePoint($4, $5), 4326), $6)
+          `INSERT INTO incidents
+             (incident_type, severity, description, location, created_by, barangay_psgc)
+           VALUES ($1, $2, $3, ST_SetSRID(ST_MakePoint($4, $5), 4326), $6,
+             (SELECT psgc FROM barangays
+              WHERE ST_Contains(boundary, ST_SetSRID(ST_MakePoint($4, $5), 4326)) LIMIT 1))
            RETURNING id`,
           [incidentType, severity, description ?? null, longitude, latitude, user.id],
         );
@@ -212,6 +234,7 @@ export const incidentRoutes: FastifyPluginAsyncZod<{ db: pg.Pool; guards: Guards
         });
         return readIncident(client, id);
       });
+      notify.incident("incident.created", incident);
       return reply.code(201).send({ incident });
     },
   );
@@ -224,14 +247,14 @@ export const incidentRoutes: FastifyPluginAsyncZod<{ db: pg.Pool; guards: Guards
       const { rows } =
         user.role === "responder"
           ? await db.query(
-              `SELECT ${COLUMNS} FROM incidents
+              `SELECT ${COLUMNS} FROM ${FROM}
                JOIN assignments ON assignments.incident_id = incidents.id
                WHERE assignments.responder_id = $1 AND assignments.released_at IS NULL
                ORDER BY incidents.detected_at DESC LIMIT 200`,
               [user.id],
             )
           : await db.query(
-              `SELECT ${COLUMNS} FROM incidents ORDER BY incidents.detected_at DESC LIMIT 200`,
+              `SELECT ${COLUMNS} FROM ${FROM} ORDER BY incidents.detected_at DESC LIMIT 200`,
             );
       return { incidents: rows };
     },
@@ -267,7 +290,14 @@ export const incidentRoutes: FastifyPluginAsyncZod<{ db: pg.Pool; guards: Guards
     },
     async (request) => {
       const { to, note } = request.body;
-      const incident = await changeStatus(db, request.user!, request.params.id, to, note);
+      const { incident, released } = await changeStatus(
+        db,
+        request.user!,
+        request.params.id,
+        to,
+        note,
+      );
+      notify.incident("incident.updated", incident, released);
       return { incident };
     },
   );
@@ -283,13 +313,41 @@ export const incidentRoutes: FastifyPluginAsyncZod<{ db: pg.Pool; guards: Guards
       },
     },
     async (request, reply) => {
-      const assignment = await assignResponder(
+      const { assignment, incident } = await assignResponder(
         db,
         request.user!,
         request.params.id,
         request.body.responderId,
       );
+      notify.incident("incident.updated", incident);
       return reply.code(201).send({ assignment });
+    },
+  );
+
+  app.post(
+    "/api/incidents/:id/acknowledge",
+    { preHandler: operators, schema: { tags: ["incidents"], params: idParams } },
+    async (request) => {
+      const { id } = request.params;
+      const user = request.user!;
+      // Only the first acknowledgement is recorded; later ones change nothing.
+      const { rowCount } = await db.query(
+        `UPDATE incidents SET acknowledged_at = now(), acknowledged_by = $2
+         WHERE id = $1 AND acknowledged_at IS NULL`,
+        [id, user.id],
+      );
+      const incident = await readIncident(db, id);
+      if (!incident) throw new HttpError(404, "Incident not found");
+      if (rowCount) {
+        await audit(db, {
+          actorId: user.id,
+          action: "incident.acknowledged",
+          entity: "incident",
+          entityId: id,
+        });
+        notify.incident("incident.updated", incident);
+      }
+      return { incident };
     },
   );
 };

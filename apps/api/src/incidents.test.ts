@@ -101,6 +101,68 @@ describe("reporting an incident", () => {
   });
 });
 
+describe("location and acknowledgement", () => {
+  it("names the barangay that contains the incident", async () => {
+    const { rows } = await db.query<{ lat: number; lng: number }>(
+      `SELECT ST_Y(ST_PointOnSurface(boundary)) AS lat, ST_X(ST_PointOnSurface(boundary)) AS lng
+       FROM barangays WHERE name = 'Binicuil'`,
+    );
+    const inside = { ...newIncident, latitude: rows[0]!.lat, longitude: rows[0]!.lng };
+
+    const response = await report(operator, inside);
+
+    expect(response.json().incident.barangayName).toBe("Binicuil");
+  });
+
+  it("leaves the barangay empty for a point outside the city", async () => {
+    const bacolod = { ...newIncident, latitude: 10.6765, longitude: 122.9509 };
+    expect((await report(operator, bacolod)).json().incident.barangayName).toBeNull();
+  });
+
+  it("records the first acknowledgement and keeps it", async () => {
+    const id = await reportedId(operator);
+    const acknowledge = () =>
+      app.inject({
+        method: "POST",
+        url: `/api/incidents/${id}/acknowledge`,
+        cookies: operator.cookies,
+      });
+
+    const first = await acknowledge();
+    const second = await acknowledge();
+
+    expect(first.statusCode).toBe(200);
+    expect(first.json().incident.acknowledgedAt).toBeTruthy();
+    expect(second.json().incident.acknowledgedAt).toBe(first.json().incident.acknowledgedAt);
+  });
+
+  it("doesn't let a responder acknowledge", async () => {
+    const id = await reportedId(operator);
+    const response = await app.inject({
+      method: "POST",
+      url: `/api/incidents/${id}/acknowledge`,
+      cookies: responder.cookies,
+    });
+    expect(response.statusCode).toBe(403);
+  });
+
+  it("lists the responders currently assigned", async () => {
+    const id = await reportedId(operator);
+    await setStatus(operator, id, "verified");
+    const response = await assign(operator, id, responder.id);
+    expect(response.statusCode).toBe(201);
+
+    const detail = await app.inject({
+      method: "GET",
+      url: `/api/incidents/${id}`,
+      cookies: operator.cookies,
+    });
+    expect(detail.json().incident.responders).toEqual([
+      expect.objectContaining({ id: responder.id }),
+    ]);
+  });
+});
+
 describe("status flow", () => {
   it("runs from detected to resolved and keeps the history", async () => {
     const id = await reportedId(operator);

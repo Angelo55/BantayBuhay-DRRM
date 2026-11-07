@@ -14,7 +14,7 @@ export function testPool() {
 
 export async function resetDb(db: pg.Pool) {
   await db.query(
-    "TRUNCATE users, sessions, incidents, incident_events, assignments, audit_logs CASCADE",
+    "TRUNCATE users, sessions, incidents, incident_events, assignments, audit_logs, cameras CASCADE",
   );
 }
 
