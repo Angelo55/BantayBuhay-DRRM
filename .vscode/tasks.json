@@ -42,6 +42,13 @@
       "problemMatcher": []
     },
     {
+      "label": "Show test accounts",
+      "detail": "Lists the seeded accounts with their passwords, from seed-credentials.local.json",
+      "type": "npm",
+      "script": "accounts",
+      "problemMatcher": []
+    },
+    {
       "label": "Check every role (app must be running)",
       "detail": "Signs in as each seeded role and checks what it can and can't reach",
       "type": "npm",

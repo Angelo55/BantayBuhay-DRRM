@@ -30,6 +30,12 @@ To create the 20 fictional test accounts (2 admins, 5 DRRM operators, 3 responde
 npm run db:seed
 ```
 
+To see those accounts with their passwords, for signing in by hand:
+
+```bash
+npm run accounts
+```
+
 **Start the app** (API and web), then open <http://127.0.0.1:5173>:
 
 ```bash
