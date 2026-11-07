@@ -1,0 +1,48 @@
+{
+  // Common BantayBuhay commands. Run them from Terminal > Run Task..., or Ctrl+Shift+P > "Tasks: Run Task".
+  // Each runs in VS Code's terminal, in this project folder.
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Test everything (local database)",
+      "detail": "Starts the test database, runs every test, then stops it",
+      "type": "npm",
+      "script": "test:local",
+      "group": { "kind": "test", "isDefault": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "Check Supabase connection",
+      "detail": "Checks the settings in apps/api/.env against Supabase",
+      "type": "npm",
+      "script": "db:check",
+      "path": "apps/api",
+      "problemMatcher": []
+    },
+    {
+      "label": "Lint",
+      "type": "npm",
+      "script": "lint",
+      "problemMatcher": ["$eslint-stylish"]
+    },
+    {
+      "label": "Typecheck",
+      "type": "npm",
+      "script": "typecheck",
+      "problemMatcher": ["$tsc"]
+    },
+    {
+      "label": "Start test database",
+      "detail": "Leaves it running until you stop it, for running single tests",
+      "type": "npm",
+      "script": "test:db",
+      "problemMatcher": []
+    },
+    {
+      "label": "Stop test database",
+      "type": "npm",
+      "script": "test:db:stop",
+      "problemMatcher": []
+    }
+  ]
+}

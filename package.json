@@ -14,6 +14,7 @@
     "lint": "eslint .",
     "typecheck": "npm run build -w @bantaybuhay/shared && npm run typecheck --workspaces --if-present",
     "test": "npm run build -w @bantaybuhay/shared && npm run test --workspaces --if-present",
+    "test:local": "node scripts/test-db.mjs run",
     "dev:api": "npm run dev -w @bantaybuhay/api",
     "dev:web": "npm run dev -w @bantaybuhay/web",
     "test:db": "node scripts/test-db.mjs start",

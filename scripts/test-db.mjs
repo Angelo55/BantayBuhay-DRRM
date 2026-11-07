@@ -1,6 +1,7 @@
 // A throwaway PostgreSQL 17 + PostGIS database for the API tests, without Docker, an installer or a
 // background service. Windows only; elsewhere, point TEST_DATABASE_URL at any Postgres with PostGIS.
 //
+//   npm run test:local     starts the database, runs every test, then stops it (the usual way)
 //   npm run test:db        downloads and verifies the binaries once, then starts a fresh database
 //   npm run test:db:stop   stops it and deletes its data
 //
@@ -109,14 +110,14 @@ function stop() {
   rmSync(DATA, { recursive: true, force: true });
 }
 
-async function start() {
+async function start({ announceStop = true } = {}) {
   await ensureInstalled();
   stop();
   must(bin("initdb"), ["-D", DATA, "-U", USER, "--auth=trust", "-E", "UTF8", "--locale=C"], "Creating the test database", { quiet: true });
   const serverOptions = `-p ${PORT} -c listen_addresses=127.0.0.1 -c fsync=off -c synchronous_commit=off -c full_page_writes=off`;
   must(bin("pg_ctl"), ["start", "-D", DATA, "-l", LOG, "-w", "-o", serverOptions], "Starting the test database", { quiet: true });
   must(bin("createdb"), ["-h", "127.0.0.1", "-p", PORT, "-U", USER, DATABASE], "Creating the test schema", { quiet: true });
-  console.log(`Test database ready on 127.0.0.1:${PORT}. Stop it with: npm run test:db:stop`);
+  console.log(`Test database ready on 127.0.0.1:${PORT}.${announceStop ? " Stop it with: npm run test:db:stop" : ""}`);
 }
 
 const command = process.argv[2];
@@ -126,12 +127,25 @@ if (process.platform !== "win32") {
 }
 try {
   if (command === "start") await start();
-  else if (command === "stop") {
+  else if (command === "run") {
+    // Start, run every workspace's tests, and always stop afterwards, even when tests fail.
+    await start({ announceStop: false });
+    let status = 1;
+    try {
+      // npm sets npm_execpath when it runs this script; calling it through node avoids needing a shell.
+      const npm = process.env.npm_execpath;
+      status = npm ? run(process.execPath, [npm, "test"]) : run("npm.cmd", ["test"]);
+    } finally {
+      stop();
+      console.log("Test database stopped and its data deleted.");
+    }
+    process.exitCode = status;
+  } else if (command === "stop") {
     stop();
     console.log("Test database stopped and its data deleted.");
   } else if (command === "status") console.log(isRunning() ? "running" : "stopped");
   else {
-    console.error("Usage: node scripts/test-db.mjs start|stop|status");
+    console.error("Usage: node scripts/test-db.mjs start|run|stop|status");
     process.exit(1);
   }
 } catch (error) {
