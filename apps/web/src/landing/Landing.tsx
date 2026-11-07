@@ -16,7 +16,7 @@ import {
   TimerOff,
   Users,
 } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { linkTo } from "../lib/router";
 import {
   AlertBanner,
@@ -35,6 +35,10 @@ import {
 } from "../ui";
 import { BARANGAY_COUNT, BarangayMap, CITY_AREA_KM2 } from "./BarangayMap";
 import { ConsolePreview, PREVIEW_INCIDENTS } from "./ConsolePreview";
+import { startLandingMotion } from "./landingMotion";
+
+// Position in the hero's entrance sequence (see .hero-rise in index.css).
+const order = (index: number) => ({ "--i": index }) as CSSProperties;
 
 // One column edge for every section, so left and right edges line up down the page.
 const WRAP = "mx-auto w-full max-w-[1200px] px-4 sm:px-8";
@@ -55,10 +59,14 @@ function Section({ id, title, lead, children }: { id: string; title: string; lea
   return (
     <section id={id} aria-labelledby={`${id}-title`} className={SECTION}>
       <div className={WRAP}>
-        <h2 id={`${id}-title`} className={H2}>
+        <h2 id={`${id}-title`} className={H2} data-reveal>
           {title}
         </h2>
-        {lead && <p className={LEAD}>{lead}</p>}
+        {lead && (
+          <p className={LEAD} data-reveal>
+            {lead}
+          </p>
+        )}
         <div className="mt-10 lg:mt-14">{children}</div>
       </div>
     </section>
@@ -99,7 +107,13 @@ function Header() {
 function HeroPreview() {
   const [first, second] = PREVIEW_INCIDENTS;
   return (
-    <div role="img" aria-label="The BantayBuhay console raising a person-down alert in Binicuil" className="relative">
+    <div
+      role="img"
+      aria-label="The BantayBuhay console raising a person-down alert in Binicuil"
+      className="hero-arrive relative"
+      style={order(3)}
+      data-parallax="40"
+    >
       <div inert className="glass space-y-3 rounded-panel p-4 shadow-float sm:p-5">
         <AlertBanner
           title="New high incident: Person down"
@@ -133,16 +147,17 @@ function Hero() {
       <div className={cx(WRAP, "grid items-center gap-12 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]")}>
         <div>
           <h1
+            style={order(0)}
             id="hero-title"
-            className="font-display text-[clamp(40px,6vw,68px)] font-semibold leading-[1.02] tracking-[-0.025em]"
+            className="hero-rise font-display text-[clamp(40px,6vw,68px)] font-semibold leading-[1.02] tracking-[-0.025em]"
           >
             Incident detection and response for Kabankalan City
           </h1>
-          <p className="mt-6 max-w-[46ch] text-[18px] text-fg-2">
+          <p className="hero-rise mt-6 max-w-[46ch] text-[18px] text-fg-2" style={order(1)}>
             Cameras flag emergencies as they happen. A DRRM operator checks each alert, assigns responders and
             follows the incident on a map of all {BARANGAY_COUNT} barangays.
           </p>
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+          <div className="hero-rise mt-8 flex flex-col gap-3 sm:flex-row" style={order(2)}>
             <LinkButton href="#sign-in" size="lg">
               Sign in to BantayBuhay
             </LinkButton>
@@ -168,9 +183,15 @@ const STEPS: { title: string; body: string; icon: ReactNode }[] = [
 function HowItWorks() {
   return (
     <Section id="how-it-works" title="Five steps from camera to scene" lead="Every change is recorded with who made it and when.">
+      <div data-steps>
+      {/* The path from detection to resolution, drawn across as the steps play. */}
+      <div aria-hidden="true" className="mb-4 hidden h-1 overflow-hidden rounded-full bg-card-muted lg:block">
+        <div data-steps-line className="h-full origin-left rounded-full bg-inverse" />
+      </div>
       <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         {STEPS.map((step, index) => (
           <li
+            data-step
             key={step.title}
             className={cx(
               "flex flex-col rounded-panel p-6 shadow-soft lg:min-h-[400px]",
@@ -192,6 +213,7 @@ function HowItWorks() {
           </li>
         ))}
       </ol>
+      </div>
     </Section>
   );
 }
@@ -217,7 +239,7 @@ const DETECTORS: { type: IncidentType; label: string; ready: boolean }[] = [
 
 function FeatureCard({ title, body, children }: { title: string; body: string; children: ReactNode }) {
   return (
-    <div className="flex flex-col rounded-panel bg-card p-6 shadow-soft sm:p-8">
+    <div data-reveal className="flex flex-col rounded-panel bg-card p-6 shadow-soft sm:p-8">
       <div className="min-h-[188px] flex-1">{children}</div>
       <h3 className="mt-8 font-display text-[21px] font-medium leading-tight">{title}</h3>
       <p className="mt-2 max-w-[48ch] text-[15px] text-fg-2">{body}</p>
@@ -313,7 +335,7 @@ function Coverage() {
     >
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
         <div className="relative rounded-panel bg-card p-4 shadow-soft sm:p-8">
-          <div className="mx-auto h-[min(70vw,520px)] w-full lg:h-[min(58vh,560px)]">
+          <div className="mx-auto h-[min(70vw,520px)] w-full lg:h-[min(58vh,560px)]" data-parallax="24">
             <BarangayMap
               label={`Map of the ${BARANGAY_COUNT} barangays of Kabankalan City`}
               highlighted={hovered}
@@ -328,12 +350,14 @@ function Coverage() {
           <div className="rounded-panel bg-card p-6 shadow-soft sm:p-8">
             <div className="flex flex-wrap gap-x-10 gap-y-6">
               <p>
-                <span className="block font-display text-[48px] font-light leading-none tabular-nums">{BARANGAY_COUNT}</span>
+                <span className="block font-display text-[48px] font-light leading-none tabular-nums">
+                  <span data-count-to={BARANGAY_COUNT}>{BARANGAY_COUNT}</span>
+                </span>
                 <span className="mt-2 block text-[15px] text-fg-2">barangays mapped</span>
               </p>
               <p>
                 <span className="block font-display text-[48px] font-light leading-none tabular-nums">
-                  {CITY_AREA_KM2}
+                  <span data-count-to={CITY_AREA_KM2}>{CITY_AREA_KM2}</span>
                   <span className="text-[24px]"> km²</span>
                 </span>
                 <span className="mt-2 block text-[15px] text-fg-2">of city covered</span>
@@ -383,7 +407,7 @@ function About() {
         </div>
         <ul className="grid gap-3 sm:grid-cols-2">
           {SOURCES.map((source) => (
-            <li key={source.title} className="flex flex-col rounded-panel bg-card p-6 shadow-soft lg:min-h-[230px]">
+            <li data-reveal key={source.title} className="flex flex-col rounded-panel bg-card p-6 shadow-soft lg:min-h-[230px]">
               <IconTile size={56} tone="muted">
                 {source.icon}
               </IconTile>
@@ -413,7 +437,7 @@ function Privacy() {
     >
       <ul className="grid gap-4 md:grid-cols-2">
         {PRIVACY.map((item) => (
-          <li key={item.title} className="flex flex-col rounded-panel bg-card p-6 shadow-soft sm:p-8 lg:min-h-[250px]">
+          <li data-reveal key={item.title} className="flex flex-col rounded-panel bg-card p-6 shadow-soft sm:p-8 lg:min-h-[250px]">
             <IconTile size={56} tone="muted">
               {item.icon}
             </IconTile>
@@ -437,7 +461,7 @@ function SignIn() {
     <Section id="sign-in" title="Sign in to BantayBuhay" lead="Accounts are created by a BantayBuhay administrator. Choose your role to go to the right sign-in.">
       <ul className="grid gap-4 md:grid-cols-3">
         {ROLES.map((role) => (
-          <li key={role.as} className="flex flex-col rounded-panel bg-card p-6 shadow-soft transition-[transform,box-shadow] duration-200 ease-out-soft hover:-translate-y-0.5 hover:shadow-lift sm:p-8">
+          <li data-reveal key={role.as} className="flex flex-col rounded-panel bg-card p-6 shadow-soft transition-[transform,box-shadow] duration-fast ease-standard hover:-translate-y-0.5 hover:shadow-lift sm:p-8">
             <IconTile size={56} tone={role.as === "operator" ? "inverse" : "muted"}>
               {role.icon}
             </IconTile>
@@ -475,8 +499,32 @@ function Footer() {
 }
 
 export function Landing() {
+  const root = useRef<HTMLDivElement>(null);
+  // Scroll motion loads once the page is idle, so it never competes with the first paint.
+  useEffect(() => {
+    let stop: (() => void) | undefined;
+    let cancelled = false;
+    const begin = () => {
+      // Under reduced motion nothing would run, so the library isn't even downloaded.
+      if (!root.current || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+      void startLandingMotion(root.current).then((undo) => {
+        if (cancelled) undo();
+        else stop = undo;
+      });
+    };
+    // Safari has no requestIdleCallback; a short delay does the same job there.
+    const hasIdle = typeof window.requestIdleCallback === "function";
+    const handle = hasIdle ? window.requestIdleCallback(begin, { timeout: 2000 }) : window.setTimeout(begin, 600);
+    return () => {
+      cancelled = true;
+      if (hasIdle) window.cancelIdleCallback(handle);
+      else window.clearTimeout(handle);
+      stop?.();
+    };
+  }, []);
+
   return (
-    <div className="bg-canvas text-fg">
+    <div ref={root} className="bg-canvas text-fg">
       <a
         href="#main"
         className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:rounded-full focus:bg-inverse focus:px-4 focus:py-2 focus:text-on-inverse"

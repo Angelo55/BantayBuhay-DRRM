@@ -2,7 +2,7 @@ import "@fontsource/atkinson-hyperlegible-next/400.css";
 import "@fontsource/atkinson-hyperlegible-next/700.css";
 import "@fontsource-variable/outfit/wght.css";
 import { MotionConfig, motion } from "motion/react";
-import { lazy, StrictMode, Suspense, useEffect } from "react";
+import { lazy, StrictMode, Suspense, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
 import { Landing } from "./landing/Landing";
@@ -23,6 +23,7 @@ const TITLES: Record<string, string> = {
 
 function Root() {
   const path = usePath();
+  const [firstPath] = useState(window.location.pathname);
   // Applies the saved theme on every page, including the landing page.
   useTheme();
   useEffect(() => {
@@ -38,7 +39,9 @@ function Root() {
 
   return (
     <Suspense fallback={<div className="min-h-dvh bg-canvas" />}>
-      <motion.div key={path} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={transition.fast}>
+      {/* Fades only when moving between pages. The first page shows at once, so nothing delays
+          its first paint. */}
+      <motion.div key={path} initial={path === firstPath ? false : { opacity: 0 }} animate={{ opacity: 1 }} transition={transition.fast}>
         {page}
       </motion.div>
     </Suspense>

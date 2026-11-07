@@ -65,12 +65,82 @@ Both fonts are self-hosted under the SIL Open Font License.
 
 - **Radius:** tile 18 px, control 16 px, card 24 px, rail 32 px, panel 40 px; pills fully round.
 - **Shadow:** `soft` for resting cards, `lift` on hover, `float` for overlays. Very low opacity, never harsh.
-- **Motion:** press 120 ms, hover 200 ms, entrance 320 ms, sheet 480 ms, eased with `ease-out-soft` (`cubic-bezier(0.22, 1, 0.36, 1)`). Every animation respects reduced motion.
+- **Motion:** see [Motion](#motion) below.
 - **Icons:** Lucide outline icons, 1.75 px stroke, 20 or 24 px.
+
+## Motion
+
+Motion explains a change, points to what needs attention, or confirms an action. Nothing moves only to decorate. The character follows the reference: soft and fluid (frosted surfaces settle rather than snap), but quick wherever people work.
+
+### Tokens
+
+Defined in `apps/web/src/ui/motion.ts` for Motion components, mirrored as CSS variables in `index.css` for transitions; `src/design/motion.test.ts` fails if the two differ. Never write a raw duration, curve or spring in a component.
+
+| Token | Value | Use |
+|---|---|---|
+| `instant` | 100 ms | Press feedback, toggles |
+| `fast` | 180 ms | Hover, tint, list reflow, page fade |
+| `base` | 280 ms | Panels, toasts, banners, dialogs entering; map markers dropping in |
+| `slow` | 460 ms | Sheets, the map camera moving to an incident |
+| `expressive` | 760 ms | Landing page only |
+| `standard` | `cubic-bezier(0.32, 0.72, 0, 1)` | Between two resting states |
+| `enter` | `cubic-bezier(0.22, 1, 0.36, 1)` | Arriving (the reference's curve) |
+| `exit` | `cubic-bezier(0.4, 0, 1, 1)` | Leaving, quickly |
+| `emphasized` | `cubic-bezier(0.05, 0.7, 0.1, 1)` | Alerts, the landing steps |
+| `gentle` spring | stiffness 260, damping 30 | Layout changes, the rail highlight |
+| `snappy` spring | stiffness 520, damping 38 | Direct manipulation (swipe handle) |
+| `alert` spring | stiffness 700, damping 44 | Emergency banner: firm, no bounce |
+| Distances | 4, 8, 16, 32, 64 px | `xs` to `xl`; parallax never exceeds `xl` |
+| Stagger | 30, 60, 100 ms | `tight` (console lists), `base`, `loose` (landing) |
+| Pulse | critical 1.2 s, high 1.9 s | Map rings and alert icons |
+
+CSS utilities: `duration-instant|fast|base|slow` and `ease-standard|enter|exit|emphasized`.
+
+### Intensity by context
+
+- **Landing page: expressive.** A hero entrance in CSS on first paint, sections that rise in once, the five steps played as a story with their connecting line drawing across, a subtle parallax (tablets and computers only), and the coverage numbers counting up. GSAP runs this, loaded after the page is idle.
+- **Console and role views: restrained.** Only state changes move, within `instant` to `base`; data never animates into place on load. Numbers settle in when they change and never count up, so a figure can be read the moment it appears.
+- **Emergencies: urgent.** See below. Motion never sits between a person and acknowledging, dispatching or reading.
+
+### Emergencies
+
+- **High and critical, unacknowledged:** a banner arrives with the `alert` spring and stays until someone acknowledges the incident, with **Acknowledge** and **Open** on it and a count of others waiting. Its icon and the map marker pulse, critical every 1.2 s and wider than high's 1.9 s. The tab title says an incident is waiting. With the sound on, a generated tone plays on arrival and repeats, critical every 30 s and high every 60 s, until acknowledged. The banner text never moves after arrival.
+- **Medium and low:** a toast, the queue item sliding in, and the map marker dropping in. No banner, pulse or sound.
+- **Responders:** a banner for each new assignment until they open it.
+- **Sound:** browsers allow audio only after a click or key press on the page. Signing in counts; after a reload, the banner offers **Enable alert sound**. The sound control sits in the console header.
+- **Medical warnings (milestone 5):** static, high-contrast, in the critical style (override 6). They never animate, so they can't delay reading.
+
+### Components
+
+| Component | Motion | Purpose |
+|---|---|---|
+| Button, IconButton | Lift on hover (`fast`), scale to 0.97 on press (`instant`), spinner while `loading` | Confirms the press; shows work in progress and blocks repeat presses |
+| Links | Tint on hover (`fast`) | Shows it's interactive |
+| Input | Focus ring appears at once; the sign-in form shakes once when refused | Focus is never delayed; a refusal is noticed |
+| ListCard | Lift on hover; selected turns black | Selection is unmistakable |
+| AnimatedList | Items slide in (`fast`), fade out (`exit`) and reorder smoothly | A live queue's changes can be followed |
+| AlertBanner | Arrives with the `alert` spring; icon pulses by severity | Emergency attention |
+| Toasts | Rise in (`base`), stack, pause their timer while hovered or focused, swipe away, shrinking timer line | Confirms without blocking |
+| Modal | Fades and rises (`base`); backdrop fades; native `<dialog>` keeps the focus trap | Shows where the dialog came from |
+| Panels and sheets | Rise in (`base`, sheets `slow`) | Shows the new layer |
+| Rail | Butter highlight glides to the active item (`gentle`) | Shows where you are |
+| Stat | A changed number settles in (`fast`) | Live values change without jitter (tabular numerals) |
+| Page change | Fades in (`fast`), no exit wait | Orientation without delay |
+| Skeleton | Highlight slides across (transform only) | Shows loading |
+| Map | New markers grow in (`base`); unacknowledged high and critical pulse; the camera moves to a selected incident (`slow`) | Where and how urgent |
+
+Not built yet, so not animated: responder positions (when tracking exists, interpolate between reported positions over the report interval, never extrapolate), marker clusters (expand and collapse with `base` when the camera count needs them), and charts (draw in once with `slow`, then update values without re-drawing). Floating labels are not used: labels stay above their fields, which reads better and suits screen readers.
+
+### Performance and accessibility
+
+- Animate only `transform` and `opacity`. MapLibre animates its own layers on the GPU.
+- Reduced motion: transitions finish at once, loops stop, the landing page shows everything in place, and pulses become a static wider ring, so alerts stay perceivable without movement. Sound is not motion and still plays.
+- Nothing blocks input: no exit waits on navigation, toasts never take focus, and every animation can be interrupted by the next action.
+- Target: 60 fps on a mid-range Android phone (about a PHP 7,000 device, MediaTek Helio G85 or Snapdragon 680 class, 4 GB RAM, Chrome) and the team's i3-1220P laptop. Checked with headless Chrome at 4x and 6x CPU slowdown; check on one real phone before the demo.
 
 ## Components
 
-All in `apps/web/src/ui`: `Button`, `IconButton`, `Card`, `IconTile`, `ListCard`, `Stat`, `CountBadge`, `StatusPill`, `SeverityBadge`, `SeverityShape`, `Field`, `Input`, `Select`, `Textarea`, `SegmentedControl`, `ChoiceCard`, `ChoiceGroup`, `Rail`, `MapCallout`, `MapPill`, `AlertBanner`, `Toast`, `Modal`, `Skeleton`, `EmptyState`, `ErrorState`, `OfflineNotice`, `SwipeToConfirm`, `ThemeToggle`, and the incident icons in `icons.tsx`.
+All in `apps/web/src/ui`: `Button`, `IconButton`, `Card`, `IconTile`, `ListCard`, `Stat`, `CountBadge`, `StatusPill`, `SeverityBadge`, `SeverityShape`, `Field`, `Input`, `Select`, `Textarea`, `SegmentedControl`, `ChoiceCard`, `ChoiceGroup`, `Rail`, `MapCallout`, `MapPill`, `AlertBanner`, `Toast`, `Modal`, `Skeleton`, `EmptyState`, `ErrorState`, `OfflineNotice`, `SwipeToConfirm`, `ThemeToggle`, `ToastStack` with `useToasts`, `AnimatedList` and `AnimatedItem`, the motion tokens in `motion.ts`, and the incident icons in `icons.tsx`.
 
 - `Button` has an `inherit` variant for buttons on a colored surface, such as Dismiss on the critical banner.
 - `ChoiceCard` wraps a real radio input, so card-style choices keep arrow keys and screen reader support.
@@ -108,3 +178,5 @@ Emergency use comes before the reference's subtlety:
 | 2026-11-08 | Landing page, hero | The heading is larger than the 40 px display size (40 to 68 px, scaling with the screen), because a public page's first line has to carry from across a room. Only on the landing page | Deliberate |
 | 2026-11-08 | Landing page, pictures | The reference uses 3D illustrations and photographs; the landing page shows the real console components with fictional incidents instead, and no photographs, because there are none of the actual operation yet | Deliberate; replace with real photographs when there are some |
 | 2026-11-08 | Landing page, coverage map | Drawn as SVG from the official boundaries instead of the console's street map, so the public page loads no map library or tiles and shows no camera locations | Deliberate |
+| 2026-11-08 | Motion | The reference is still images, so motion follows its character: soft surfaces that settle (the `enter` curve), quick in the console, expressive only on the landing page. Emergency motion is stronger than anything in the reference: a firm banner and pulse that stay until acknowledged | Deliberate, override 1 |
+| 2026-11-08 | Landing motion | Reveals, the steps story, subtle parallax and count-ups at 60 fps down to a 6x slower CPU; Lighthouse mobile 96, 100, 100, 100. See docs/design/MOTION-REPORT.md | Matches |

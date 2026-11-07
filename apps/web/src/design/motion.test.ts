@@ -4,7 +4,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { DISTANCE, DURATION, EASE, PULSE } from "../ui/motion";
+import { DISTANCE, DURATION, EASE, PULSE, STAGGER } from "../ui/motion";
 
 const css = readFileSync(fileURLToPath(new URL("../index.css", import.meta.url)), "utf8");
 const variable = (name: string) => {
@@ -24,6 +24,10 @@ describe("motion tokens", () => {
 
   it.each(Object.entries(DISTANCE))("distance %s matches", (name, pixels) => {
     expect(variable(`distance-${name}`)).toBe(`${pixels}px`);
+  });
+
+  it.each(Object.entries(STAGGER))("stagger %s matches", (name, seconds) => {
+    expect(variable(`stagger-${name}`)).toBe(`${Math.round(seconds * 1000)}ms`);
   });
 
   it.each(Object.entries(PULSE))("%s pulse period matches", (severity, pulse) => {

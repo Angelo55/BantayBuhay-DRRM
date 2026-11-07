@@ -11,6 +11,7 @@ import {
   X,
 } from "lucide-react";
 import { motion } from "motion/react";
+import { MotionDemos } from "./MotionDemos";
 import { useState, type ReactNode } from "react";
 import {
   AlertBanner,
@@ -481,6 +482,10 @@ export function StyleGuide() {
             <p className="text-fg-2">The camera snapshot shows nothing happening. Responders won't be sent.</p>
           </Modal>
           <Toast message="Dispatched Dennis Alipao to Tagukon" open={toastOpen} onClose={() => setToastOpen(false)} />
+        </Section>
+
+        <Section id="motion" title="Motion">
+          <MotionDemos />
         </Section>
 
         <Section id="states" title="States">

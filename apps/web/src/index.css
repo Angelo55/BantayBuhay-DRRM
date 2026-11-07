@@ -152,6 +152,9 @@
   --bb-distance-md: 16px;
   --bb-distance-lg: 32px;
   --bb-distance-xl: 64px;
+  --bb-stagger-tight: 30ms;
+  --bb-stagger-base: 60ms;
+  --bb-stagger-loose: 100ms;
   --bb-pulse-critical: 1200ms;
   --bb-pulse-high: 1900ms;
 }
@@ -310,12 +313,43 @@ body {
   }
 }
 
+/* Landing hero entrance, in CSS so it runs with the first paint. The headline and sub-line only
+   rise (no fade), so the page's largest text paints at once; the preview fades in after. */
+@keyframes bb-rise {
+  from {
+    transform: translateY(var(--bb-distance-md));
+  }
+  to {
+    transform: none;
+  }
+}
+@keyframes bb-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(var(--bb-distance-lg)) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.hero-rise {
+  animation: bb-rise var(--bb-duration-expressive) var(--bb-ease-enter) both;
+  animation-delay: calc(var(--i, 0) * var(--bb-stagger-loose));
+}
+.hero-arrive {
+  animation: bb-arrive var(--bb-duration-expressive) var(--bb-ease-enter) both;
+  animation-delay: calc(var(--i, 0) * var(--bb-stagger-loose));
+}
+
 /* Reduced motion: transitions finish at once, loops stop, and alerts keep a static emphasis
    (a solid ring) instead of a pulse, so they're still impossible to miss. */
 @media (prefers-reduced-motion: reduce) {
   .skeleton::after,
   .shake,
-  .toast-timer {
+  .toast-timer,
+  .hero-rise,
+  .hero-arrive {
     animation: none;
   }
   .pulse-ring::before {
