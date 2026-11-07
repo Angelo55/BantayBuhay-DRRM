@@ -16,6 +16,8 @@ const redis = new Redis(config.redisUrl, {
 
 const app = buildApp({
   logger: true,
+  db: pool,
+  cookieSecure: config.cookieSecure,
   checks: {
     // PostGIS_Version also proves the spatial extension is available.
     postgres: () => pool.query("SELECT PostGIS_Version()"),

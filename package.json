@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "engines": {
-    "node": ">=22"
+    "node": ">=24.7"
   },
   "workspaces": [
     "packages/*",
@@ -15,7 +15,8 @@
     "typecheck": "npm run build -w @bantaybuhay/shared && npm run typecheck --workspaces --if-present",
     "test": "npm run build -w @bantaybuhay/shared && npm run test --workspaces --if-present",
     "dev:api": "npm run dev -w @bantaybuhay/api",
-    "dev:web": "npm run dev -w @bantaybuhay/web"
+    "dev:web": "npm run dev -w @bantaybuhay/web",
+    "test:db": "docker compose -f compose.test.yaml up --detach --wait"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

@@ -27,6 +27,7 @@ COPY --from=build /repo/packages/shared/package.json packages/shared/package.jso
 COPY --from=build /repo/packages/shared/dist packages/shared/dist
 COPY --from=build /repo/apps/api/package.json apps/api/package.json
 COPY --from=build /repo/apps/api/dist apps/api/dist
+COPY --from=build /repo/apps/api/migrations apps/api/migrations
 USER node
 EXPOSE 3000
 CMD ["node", "apps/api/dist/server.js"]

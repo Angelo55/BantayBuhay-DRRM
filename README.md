@@ -2,7 +2,7 @@
 
 AI-assisted Disaster Risk Reduction and Management (DRRM) incident detection and response platform. The primary deployment target and map coverage is Kabankalan City, Negros Occidental.
 
-> **Status: early foundation. Not production-ready.** The services start and pass health checks, but there are no user-facing features yet. The upstream prototype is kept in [`legacy/`](legacy/) for reference only; see [the Phase 0 audit](docs/phase-0/AUDIT.md) before reusing any of it.
+> **Status: early build. Not production-ready.** The API has logins, roles, seeded test accounts and the incident status flow, but there's no user interface for them yet. The upstream prototype is kept in [`legacy/`](legacy/) for reference only; see [the Phase 0 audit](docs/phase-0/AUDIT.md) before reusing any of it.
 
 ## Run it locally
 
@@ -24,8 +24,20 @@ docker compose down
 npm install
 ```
 
+API tests need a throwaway database, so start it first:
+
+```bash
+npm run test:db
+```
+
 ```bash
 npm run lint && npm run typecheck && npm test && npm run build
+```
+
+To create the 20 fictional test accounts, with passwords saved to the git-ignored `seed-credentials.local.json`:
+
+```bash
+bash infra/seed.sh
 ```
 
 For the inference service, in `services/inference`:

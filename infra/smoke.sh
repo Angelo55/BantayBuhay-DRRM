@@ -38,6 +38,15 @@ echo "ok: client-side routes fall back to the app"
 curl -sI "$base/" | grep -i '^content-security-policy:' >/dev/null || fail "security headers"
 echo "ok: security headers present"
 
+status=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$base/api/auth/login" \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"nobody@bantaybuhay.test","password":"wrong"}')
+[ "$status" = 401 ] || fail "login through nginx returned $status, expected 401"
+echo "ok: migrations ran and login reaches the database"
+
+[ "$(curl -s -o /dev/null -w '%{http_code}' "$base/api/incidents")" = 401 ] || fail "incidents without a session"
+echo "ok: incidents require a session"
+
 published=$(docker compose ps --format '{{.Service}} {{.Ports}}' | grep -e '->' | grep -v '^nginx ' || true)
 [ -z "$published" ] || fail "only nginx may publish a port, found: $published"
 echo "ok: only nginx publishes a port"

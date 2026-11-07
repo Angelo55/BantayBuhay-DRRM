@@ -1,0 +1,20 @@
+# Throwaway database for API tests. Data lives in memory and is lost on stop.
+# Start it with: npm run test:db
+name: bantaybuhay-test
+
+services:
+  postgres:
+    image: postgis/postgis:17-3.7-alpine
+    environment:
+      POSTGRES_USER: bantaybuhay
+      POSTGRES_PASSWORD: test-only
+      POSTGRES_DB: bantaybuhay_test
+    ports:
+      - "127.0.0.1:55432:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bantaybuhay -d bantaybuhay_test"]
+      interval: 2s
+      timeout: 3s
+      retries: 30

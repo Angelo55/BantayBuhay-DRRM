@@ -1,5 +1,11 @@
+import type pg from "pg";
 import { describe, expect, it } from "vitest";
-import { buildApp } from "./app.js";
+import { buildApp as buildFullApp, type AppOptions } from "./app.js";
+
+// Health routes never query this database.
+const unusedDb = {} as pg.Pool;
+const buildApp = (options: Pick<AppOptions, "checks" | "checkTimeoutMs">) =>
+  buildFullApp({ ...options, db: unusedDb });
 
 const healthy = async () => {};
 const failing = async () => {
