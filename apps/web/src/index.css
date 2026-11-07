@@ -1,8 +1,140 @@
 @import "tailwindcss";
 
-/* Tokens and their reasons are in DESIGN.md. */
-@theme {
+/*
+ * Design tokens. DESIGN.md is the contract and explains every value;
+ * docs/design/DESIGN-ANALYSIS.md shows where each one came from.
+ *
+ * Theme values live in CSS variables (--bb-*), so one class works in both themes.
+ * Light is the default; [data-theme="dark"] on <html> switches to the derived dark theme.
+ * src/design/contrast.test.ts checks the text and control pairs below against WCAG AA.
+ */
+:root {
+  --bb-canvas: #f4f3ef;
+  --bb-glass: rgb(243 244 245 / 0.72);
+  --bb-glass-solid: #f3f4f5;
+  --bb-glass-edge: rgb(255 255 255 / 0.6);
+  --bb-card: #ffffff;
+  --bb-card-muted: #f1f2f4;
+  --bb-fg: #111315;
+  --bb-fg-2: #4f565e;
+  --bb-hairline: #e3e6e9;
+  --bb-border-ui: #7c848d;
+  --bb-accent: #f7e2b0;
+  --bb-accent-strong: #efcb72;
+  /* The accent stays light in both themes, so text on it is always dark. */
+  --bb-on-accent: #111315;
+  --bb-info: #275e9e;
+  --bb-info-soft: #ddebf7;
+  --bb-inverse: #111315;
+  --bb-on-inverse: #ffffff;
+  --bb-on-inverse-2: #b4bac0;
+  --bb-focus: #275e9e;
+
+  /* Severity fills carry dark text; the -text variants are for words on light surfaces. */
+  --bb-severity-low: #5aa9f0;
+  --bb-severity-medium: #f2c230;
+  --bb-severity-high: #f28c28;
+  --bb-severity-critical: #e5484d;
+  --bb-severity-low-text: #1d5fa8;
+  --bb-severity-medium-text: #735400;
+  --bb-severity-high-text: #9c4700;
+  --bb-severity-critical-text: #bf1f2b;
+  --bb-on-severity: #111315;
+  --bb-critical-banner: #bf1f2b;
+  --bb-on-critical-banner: #ffffff;
+
+  --bb-shadow-sm: 0 1px 2px rgb(17 19 21 / 0.04), 0 2px 8px rgb(17 19 21 / 0.04);
+  --bb-shadow-md: 0 8px 24px rgb(17 19 21 / 0.08);
+  --bb-shadow-lg: 0 20px 48px rgb(17 19 21 / 0.12);
+
+  color-scheme: light;
+}
+
+/* Derived from the reference's language: black pills turn white, white cards turn charcoal. */
+:root[data-theme="dark"] {
+  --bb-canvas: #0e1012;
+  --bb-glass: rgb(28 30 33 / 0.72);
+  --bb-glass-solid: #1c1e21;
+  --bb-glass-edge: rgb(255 255 255 / 0.08);
+  --bb-card: #1a1c1f;
+  --bb-card-muted: #23262a;
+  --bb-fg: #f2f3f4;
+  --bb-fg-2: #a7aeb5;
+  --bb-hairline: #2e3237;
+  --bb-border-ui: #6f7780;
+  --bb-accent: #f2d58a;
+  --bb-accent-strong: #f7e2b0;
+  --bb-info: #8fbcef;
+  --bb-info-soft: #1e3045;
+  --bb-inverse: #f2f3f4;
+  --bb-on-inverse: #111315;
+  --bb-on-inverse-2: #4f565e;
+  --bb-focus: #8fbcef;
+  --bb-severity-low: #6fb3f2;
+  --bb-severity-medium: #f2c230;
+  --bb-severity-high: #f5a04a;
+  --bb-severity-critical: #ff6b70;
+  --bb-severity-low-text: #6fb3f2;
+  --bb-severity-medium-text: #f2c230;
+  --bb-severity-high-text: #f5a04a;
+  --bb-severity-critical-text: #ff6b70;
+  --bb-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.3);
+  --bb-shadow-md: 0 8px 24px rgb(0 0 0 / 0.35);
+  --bb-shadow-lg: 0 20px 48px rgb(0 0 0 / 0.45);
+  color-scheme: dark;
+}
+
+@theme inline {
+  --font-display: "Outfit Variable", "Outfit", system-ui, sans-serif;
   --font-sans: "Atkinson Hyperlegible Next", system-ui, sans-serif;
+
+  --color-canvas: var(--bb-canvas);
+  --color-glass: var(--bb-glass);
+  --color-card: var(--bb-card);
+  --color-card-muted: var(--bb-card-muted);
+  --color-fg: var(--bb-fg);
+  --color-fg-2: var(--bb-fg-2);
+  --color-hairline: var(--bb-hairline);
+  --color-border-ui: var(--bb-border-ui);
+  --color-accent: var(--bb-accent);
+  --color-accent-strong: var(--bb-accent-strong);
+  --color-on-accent: var(--bb-on-accent);
+  --color-info: var(--bb-info);
+  --color-info-soft: var(--bb-info-soft);
+  --color-inverse: var(--bb-inverse);
+  --color-on-inverse: var(--bb-on-inverse);
+  --color-on-inverse-2: var(--bb-on-inverse-2);
+  --color-severity-low: var(--bb-severity-low);
+  --color-severity-medium: var(--bb-severity-medium);
+  --color-severity-high: var(--bb-severity-high);
+  --color-severity-critical: var(--bb-severity-critical);
+  --color-severity-low-text: var(--bb-severity-low-text);
+  --color-severity-medium-text: var(--bb-severity-medium-text);
+  --color-severity-high-text: var(--bb-severity-high-text);
+  --color-severity-critical-text: var(--bb-severity-critical-text);
+  --color-on-severity: var(--bb-on-severity);
+  --color-critical-banner: var(--bb-critical-banner);
+  --color-on-critical-banner: var(--bb-on-critical-banner);
+
+  --radius-tile: 18px;
+  --radius-control: 16px;
+  --radius-card: 24px;
+  --radius-rail: 32px;
+  --radius-panel: 40px;
+
+  --shadow-soft: var(--bb-shadow-sm);
+  --shadow-lift: var(--bb-shadow-md);
+  --shadow-float: var(--bb-shadow-lg);
+
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out-soft: cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+/*
+ * Legacy tokens, used only by the screens built before the reference design.
+ * They're removed when those screens are rebuilt on the component library.
+ */
+@theme {
   --color-ground: #0f1b24;
   --color-surface: #16252f;
   --color-raised: #1d3140;
@@ -16,21 +148,54 @@
   --color-sev-critical: #ff6166;
 }
 
-html {
-  color-scheme: dark;
-}
-
 body {
-  background-color: var(--color-ground);
-  color: var(--color-ink);
+  background-color: var(--bb-canvas);
+  color: var(--bb-fg);
   font-family: var(--font-sans);
 }
 
 :focus-visible {
-  outline: 3px solid var(--color-action);
+  outline: 3px solid var(--bb-focus);
   outline-offset: 2px;
 }
 
+.glass {
+  background-color: var(--bb-glass-solid);
+  border: 1px solid var(--bb-glass-edge);
+}
+@supports (backdrop-filter: blur(1px)) {
+  .glass {
+    background-color: var(--bb-glass);
+    backdrop-filter: blur(24px) saturate(140%);
+  }
+}
+
+@keyframes bb-shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}
+.skeleton {
+  background: linear-gradient(90deg, var(--bb-card-muted) 25%, var(--bb-hairline) 50%, var(--bb-card-muted) 75%);
+  background-size: 200% 100%;
+  animation: bb-shimmer 1.6s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Legacy component classes for the pre-reference screens. */
 @layer components {
   .field {
     @apply block min-h-11 w-full rounded-md border border-line bg-raised px-3 py-2 text-[15px] text-ink;
