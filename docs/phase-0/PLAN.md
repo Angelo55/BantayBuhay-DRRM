@@ -48,9 +48,9 @@ The guidelines give no registration link or proposal format, so get these from t
 | # | Question | Answer |
 |---|---|---|
 | 1 | What does BantayBuhay2025 implement, and what's its stack? | **Answered.** A webcam gesture and face recognition prototype with mock auth and data. See [AUDIT.md](AUDIT.md) |
-| 2 | Real CCTV feeds, or simulated? | **Simulated for now, confirmed by you.** The long-term system uses your own cameras (see [INFRASTRUCTURE.md](INFRASTRUCTURE.md)) |
+| 2 | Real CCTV feeds, or simulated? | **Simulated for now, confirmed by you.** No reconfigured CCTV is needed for the pitch or prototype: the guidelines don't require operational hardware, and recorded video can run through the same pipeline. The long-term system uses your own cameras (see [INFRASTRUCTURE.md](INFRASTRUCTURE.md)) |
 | 3 | Which incident types for the MVP? | **Confirmed by you:** fire and smoke, person down, flood, SOS gesture. First stretch: vehicular accident |
-| 4 | Can the current EC2 handle real-time inference? | **Still open.** The region is Singapore, but I need the instance type and access. A benchmark up to $5 is approved |
+| 4 | Can the current EC2 handle real-time inference? | **Still open.** The region is Singapore, and AWS CLI 2.39.5 is installed, but it isn't signed in yet. A benchmark up to $5 is approved |
 | 5 | Do we have a domain? | **No.** Use `<elastic-ip>.sslip.io` for HTTPS for now |
 | 6 | Judging criteria and deadline? | **Answered above** |
 
@@ -67,13 +67,13 @@ The guidelines give no registration link or proposal format, so get these from t
 
 | # | Decision | Recommendation | Why it matters |
 |---|---|---|---|
-| 1 | **Are you registered?** | Submit by Nov 9. Nothing else counts if this is missed | Hard cutoff |
-| 2 | **How does a civilian get linked to an incident?** Owning the cameras doesn't settle this, because a camera still can't identify the people it sees | **No live facial recognition.** Use civilian SOS, operator search and QR medical IDs. Each link is explicit and audited | Drives the data model. Facial recognition tied to medical records stays high-risk under RA 10173 whoever owns the camera, and it invites hard Q&A |
-| 3 | **Approve the stack and this schedule** | As listed in [INFRASTRUCTURE.md](INFRASTRUCTURE.md) | Blocks implementation |
-| 4 | **EC2 instance type and access** | Send the type and public IP from the EC2 console, plus the SSH username | Blocks the benchmark |
-| 5 | **Face photos in git history** | Leave history intact while private. Purge before going public, which needs a force-push and your go-ahead. Ask Vincent to remove them from public upstream | Conflicts with "keep upstream history" |
-| 6 | **Repo visibility and license** | Stay private until Vincent confirms in writing | If judges need access, add them as collaborators |
-| 7 | **Merge the docs branch** | Merge after review | These documents are on `docs/phase-0`, not on `main` |
+| 1 | **Approve the stack and this schedule** | As listed in [INFRASTRUCTURE.md](INFRASTRUCTURE.md) | Blocks implementation |
+| 2 | **Sign in to the AWS CLI** | Run `aws login` yourself, with an IAM identity rather than the root account | Blocks the benchmark |
+| 3 | **Face photos in git history** | Leave history intact while private. Purge before going public, which needs a force-push and your go-ahead. Ask Vincent to remove them from public upstream | Conflicts with "keep upstream history" |
+| 4 | **Repo visibility and license** | Stay private until Vincent confirms in writing | If judges need access, add them as collaborators |
+| 5 | **Merge the docs branch** | Merge after review | These documents are on `docs/phase-0`, not on `main` |
+
+**Settled on Nov 7:** the team reports it's registered. The working design links civilians through their own SOS, operator search and QR medical IDs, with no facial recognition; your answer read as acceptance, so tell me if you meant otherwise. The concept proposal draft is in Claude Docs for the team to edit.
 
 ## Schedule
 
@@ -83,7 +83,7 @@ The earlier estimate of 13 to 15 working days for two full-time developers **doe
 
 | Dates | Task | Done when |
 |---|---|---|
-| Nov 7 to 9 | Confirm team and coach, write and submit the concept proposal | Submission confirmed |
+| Nov 7 to 9 | Edit the concept proposal draft and submit it, if the registration didn't already include one | Submission confirmed |
 | Nov 8 to 14 | Interview Kabankalan's City DRRM office, responders and residents. Record response times, current process, past incidents and needs | Named sources and specific findings for the deck |
 | Nov 10 to 15 | Cost model from real quotes: camera, networking, compute, per-site and per-year costs. Pilot plan: one site, who funds it, who operates it | One-page cost table and pilot plan |
 | Nov 12 to 17 | Finalist registration, security questions, laptop declaration. Declare any laptop you'll bring | Registration confirmed |
@@ -152,7 +152,7 @@ Before any real deployment:
 
 | Risk | Impact | Mitigation |
 |---|---|---|
-| Registration missed on Nov 9 | **Fatal** | Do it first |
+| Concept proposal not submitted by Nov 9 | **Fatal** | Team reports it's registered; confirm the proposal is in |
 | No verified local problem evidence | High, on 50% of the score | Interviews start Nov 8 |
 | Build takes time from pitch work | High | Pitch tasks take priority, and the build has a fixed cut order |
 | Video won't play on venue AV | Medium | Ask organizers; carry screenshots in the deck as backup |
