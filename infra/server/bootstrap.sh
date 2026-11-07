@@ -22,7 +22,8 @@ install -d -m 0750 -o root -g bantaybuhay /etc/bantaybuhay
 printf 'ROLE=%s\nSERVER_NAME=%s\nAPI_URL=%s\n' "$ROLE" "${SERVER_NAME:-}" "${API_URL:-}" >/etc/bantaybuhay/site.env
 
 if [ "$ROLE" = web ]; then
-  apt-get install -y nginx certbot gettext-base
+  # libatomic1: Node 26 needs it, and the Ubuntu server image leaves it out.
+  apt-get install -y nginx certbot gettext-base libatomic1
   install -d -m 0755 /var/www/letsencrypt
 
   # Node.js from nodejs.org, the newest 26.x, checked against the release's published checksums.

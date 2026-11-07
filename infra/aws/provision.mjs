@@ -156,7 +156,19 @@ function server(roleName, type, header, groupId) {
     return existing;
   }
   const userData = bootstrap.replace("set -euo pipefail\n", `set -euo pipefail\n${header}\n`);
-  const launched = aws(["ec2", "run-instances", "--image-id", image, "--instance-type", type, "--count", "1",
+  // A new instance profile takes a few seconds to become usable; retry only that error.
+  const launch = (args) => {
+    for (let attempt = 1; ; attempt++) {
+      try {
+        return aws(args);
+      } catch (error) {
+        if (attempt >= 8 || !/instance profile/i.test(String(error))) throw error;
+        console.log("waiting for the new server role to become usable...");
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10_000);
+      }
+    }
+  };
+  const launched = launch(["ec2", "run-instances", "--image-id", image, "--instance-type", type, "--count", "1",
     "--iam-instance-profile", `Name=bantaybuhay-ec2-${roleName}`, "--security-group-ids", groupId,
     "--metadata-options", "HttpTokens=required,HttpEndpoint=enabled",
     "--block-device-mappings", json([{ DeviceName: "/dev/sda1", Ebs: { VolumeSize: 20, VolumeType: "gp3", Encrypted: true, DeleteOnTermination: true } }]),
