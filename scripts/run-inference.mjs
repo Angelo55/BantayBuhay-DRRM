@@ -22,6 +22,10 @@ if (!existsSync(python)) {
 const readEnv = (path) => (existsSync(path) ? parseEnv(readFileSync(path, "utf8")) : {});
 const env = { ...readEnv(join(SERVICE, ".env")), ...process.env };
 env.DETECTOR_TOKEN ??= readEnv(join(ROOT, "apps", "api", ".env")).DETECTOR_TOKEN;
+// Laptop defaults. Measured on the i3 laptop: one camera at 1 fps uses about 0.8 of a core; all six
+// at 2 fps use about 4.3 cores and still fall behind. The server's systemd unit sets its own values.
+env.CAMERA_LIMIT ??= "1";
+env.FRAMES_PER_SECOND ??= "1";
 if (!env.DETECTOR_TOKEN) {
   console.error("No DETECTOR_TOKEN in services/inference/.env or apps/api/.env, so detection would be off.");
   process.exit(1);

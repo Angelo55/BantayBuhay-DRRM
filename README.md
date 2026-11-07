@@ -24,6 +24,18 @@ Setup builds the shared package, creates `apps/api/.env` from [the template](app
 npm run db:check
 ```
 
+**Database schema and test accounts.** The schema is the SQL files in [`supabase/migrations`](supabase/migrations). To see whether Supabase is missing any of them (this changes nothing):
+
+```bash
+npm run db:migrate
+```
+
+To apply the missing ones (see [the runbook](docs/RUNBOOK.md#database-changes)):
+
+```bash
+npm run db:migrate -- --apply
+```
+
 To create the 20 fictional test accounts (2 admins, 5 DRRM operators, 3 responders, 10 civilians) and the 6 simulated cameras, if the database has no users yet. Passwords go to the git-ignored `seed-credentials.local.json` and are never printed:
 
 ```bash
@@ -48,7 +60,7 @@ npm run dev
 npm run dev:all
 ```
 
-On a laptop the detector watches one camera at one frame per second; change that in `services/inference/.env` (see [its template](services/inference/.env.example)). Each simulated camera plays `media/sim/<name>.mp4` on a loop, or a moving test pattern if that clip is missing. The names are `barangay-1`, `binicuil`, `tagukon`, `hilamonan`, `tampalon` and `camansi`. `media/` is git-ignored, so footage never enters the repository.
+On a laptop the detector watches one camera at one frame per second (about 0.8 of a CPU core); change that in `services/inference/.env` (see [its template](services/inference/.env.example)). Each simulated camera plays `media/sim/<name>.mp4` on a loop, or a moving test pattern if that clip is missing. The names are `barangay-1`, `binicuil`, `tagukon`, `hilamonan`, `tampalon` and `camansi`. `media/` is git-ignored, so footage never enters the repository.
 
 **One service at a time**, for debugging: `npm run dev:api`, `npm run dev:web` or `npm run dev:inference`.
 
@@ -88,7 +100,11 @@ For the detection service, in `services/inference`:
 .venv/Scripts/python -m pytest
 ```
 
-Database changes are SQL files in [`supabase/migrations`](supabase/migrations). The API tests apply them to the local test database; Supabase gets them through the Supabase CLI or dashboard. Row level security limits every signed-in request; see the comments in the migrations.
+Database changes are SQL files in [`supabase/migrations`](supabase/migrations), named `<timestamp>_<name>.sql`. The API tests apply them to the local test database; `npm run db:migrate -- --apply` applies them to Supabase. Row level security limits every signed-in request; see the comments in the migrations.
+
+## Live site and operations
+
+The demo runs at <https://54-169-12-87.sslip.io>. Pushing to `main` deploys it once CI passes. Deploys, rollback, the on-demand detector server, secrets and costs are in [the runbook](docs/RUNBOOK.md). [The before-and-after report](docs/migration/PHASE-2-REPORT.md) compares the old Docker setup with this one and lists the regression checks.
 
 | Path | Purpose |
 | --- | --- |
@@ -97,8 +113,8 @@ Database changes are SQL files in [`supabase/migrations`](supabase/migrations). 
 | `services/inference` | Detection service: reads camera clips or streams and reports what persists |
 | `packages/shared` | Types shared by the web app and API |
 | `supabase/migrations` | Database schema, row level security and storage bucket |
-| `scripts` | Setup, dev, stop and test database helpers |
-| `infra` | Nginx configuration for the server |
+| `scripts` | Setup, dev, stop, test database and secrets helpers |
+| `infra` | Nginx, systemd units, server scripts and AWS setup |
 | `legacy` | Upstream prototype, not built or run |
 
 ## Credits

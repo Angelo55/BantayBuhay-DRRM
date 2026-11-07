@@ -70,6 +70,13 @@
       "problemMatcher": []
     },
     {
+      "label": "Check Supabase migrations",
+      "detail": "Lists files in supabase/migrations that Supabase hasn't applied; changes nothing",
+      "type": "npm",
+      "script": "db:migrate",
+      "problemMatcher": []
+    },
+    {
       "label": "Lint",
       "type": "npm",
       "script": "lint",
