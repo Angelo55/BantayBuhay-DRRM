@@ -330,7 +330,13 @@ Prices are AWS on-demand Linux in Singapore (`ap-southeast-1`), from AWS's publi
 | **B. App on `t3.large`, plus `g4dn.xlarge` GPU during demos** | $0.1056/h + $0.736/h; GPU on 24/7 is $537/mo | Lowest | Medium | Good | GPU quota is often zero on new accounts, and increases can take time |
 | **C. Your existing EC2 plus inference on a team laptop** | No added compute | Depends on venue internet | Medium | Poor | Venue Wi-Fi becomes a single point of failure |
 
-**How to decide:** run a one-hour benchmark on `c7i.2xlarge`, for about $0.41 plus a little storage. You've approved up to $5, which is about 12 hours. The target is 4 simulated cameras at 2 fps each, or 8 inferences per second. Move to Option B only if that fails. Request the GPU quota now as insurance, since a request costs nothing.
+**How to decide:** run a one-hour benchmark on `c7i.2xlarge`, for about $0.41 plus a little storage. You've approved up to $5, which is about 12 hours. The target is 4 simulated cameras at 2 fps each, or 8 inferences per second. Move to Option B only if that fails.
+
+**Account limits, checked 2026-11-07:**
+
+- **GPU quota is 0 vCPUs in Singapore,** so `g4dn.xlarge` can't launch until AWS approves an increase. Requesting one costs nothing, but approval can take time.
+- **Standard quota is 8 vCPUs.** A `c7i.2xlarge` uses all 8, so it can't run alongside another instance. Running a `t3.large` with it would need an increase to at least 10.
+- **A $50 monthly budget already exists.** Alerts don't stop spending, so the plan below can pass $50 if the GPU fallback is used.
 
 **Your budget is $149 in AWS credit.** Check its expiry date and covered services under Billing > Credits, because I can't see those terms. The plan below stays well under the credit:
 
@@ -345,9 +351,9 @@ Prices are AWS on-demand Linux in Singapore (`ap-southeast-1`), from AWS's publi
 
 **Stop instances when idle.** Left running 24/7, `c7i.2xlarge` costs $9.88 a day, using the whole credit in about 15 days. `g4dn.xlarge` costs $17.66 a day, using it in about 8 days.
 
-`g5.xlarge` and `g6.xlarge` weren't in the price file I fetched for Singapore, so check the console if you'd prefer a newer GPU.
+AWS reports that `g5.xlarge` and `g6.xlarge` aren't offered in Singapore, so `g4dn.xlarge` is the GPU option there.
 
-Your current instance is in Singapore, but it can't be assessed until I know its type (see question 4 in [PLAN.md](PLAN.md)). If it's at least as large as a `t3.large`, it can replace the app host above. Avoid burstable `t3` instances for continuous inference, because they exhaust CPU credits.
+**Your existing instance isn't suitable.** It's a stopped `t3.medium` (2 vCPU, 4 GB) named for the PESO project. It's too small for this stack, and medical data shouldn't share a host with another project. Avoid burstable `t3` instances for continuous inference, because they exhaust CPU credits. While stopped, its storage and Elastic IP still cost a little.
 
 ### Database
 

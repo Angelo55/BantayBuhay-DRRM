@@ -50,7 +50,7 @@ The guidelines give no registration link or proposal format, so get these from t
 | 1 | What does BantayBuhay2025 implement, and what's its stack? | **Answered.** A webcam gesture and face recognition prototype with mock auth and data. See [AUDIT.md](AUDIT.md) |
 | 2 | Real CCTV feeds, or simulated? | **Simulated for now, confirmed by you.** No reconfigured CCTV is needed for the pitch or prototype: the guidelines don't require operational hardware, and recorded video can run through the same pipeline. The long-term system uses your own cameras (see [INFRASTRUCTURE.md](INFRASTRUCTURE.md)) |
 | 3 | Which incident types for the MVP? | **Confirmed by you:** fire and smoke, person down, flood, SOS gesture. First stretch: vehicular accident |
-| 4 | Can the current EC2 handle real-time inference? | **Still open.** The region is Singapore, and AWS CLI 2.39.5 is installed, but it isn't signed in yet. A benchmark up to $5 is approved |
+| 4 | Can the current EC2 handle real-time inference? | **No.** The account's only instance is a stopped `t3.medium` (2 vCPU, 4 GB) named for the PESO project. It's too small and burstable, and it isn't dedicated to BantayBuhay. Use a new instance. A benchmark up to $5 is approved |
 | 5 | Do we have a domain? | **No.** Use `<elastic-ip>.sslip.io` for HTTPS for now |
 | 6 | Judging criteria and deadline? | **Answered above** |
 
@@ -68,7 +68,7 @@ The guidelines give no registration link or proposal format, so get these from t
 | # | Decision | Recommendation | Why it matters |
 |---|---|---|---|
 | 1 | **Approve the stack and this schedule** | As listed in [INFRASTRUCTURE.md](INFRASTRUCTURE.md) | Blocks implementation |
-| 2 | **Sign in to the AWS CLI** | Run `aws login` yourself, with an IAM identity rather than the root account | Blocks the benchmark |
+| 2 | **AWS identity for the benchmark** | The CLI is signed in as root. Switch to a limited IAM user before anything is created | Blocks the benchmark |
 | 3 | **Face photos in git history** | Leave history intact while private. Purge before going public, which needs a force-push and your go-ahead. Ask Vincent to remove them from public upstream | Conflicts with "keep upstream history" |
 | 4 | **Repo visibility and license** | Stay private until Vincent confirms in writing | If judges need access, add them as collaborators |
 | 5 | **Merge the docs branch** | Merge after review | These documents are on `docs/phase-0`, not on `main` |
