@@ -1,0 +1,78 @@
+name: Deploy
+
+# Ships main to the servers after CI passes. No AWS keys are stored: GitHub signs in to the
+# bantaybuhay-github-deploy role, which can only upload releases and run deploy commands on
+# servers tagged Project=bantaybuhay.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ap-southeast-1
+  BUCKET: bantaybuhay-deploy-195170887047
+  ROLE_ARN: arn:aws:iam::195170887047:role/bantaybuhay-github-deploy
+
+jobs:
+  deploy:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run build
+
+      - name: Package the release
+        id: package
+        run: |
+          id="$(date -u +%Y%m%d-%H%M%S)-$(git rev-parse --short HEAD)"
+          tar -czf release.tgz \
+            package.json package-lock.json \
+            packages/shared/package.json packages/shared/dist \
+            apps/api/package.json apps/api/dist apps/api/certs \
+            apps/web/package.json apps/web/dist \
+            services/inference/app services/inference/requirements.txt \
+            infra/server infra/nginx
+          echo "id=$id" >> "$GITHUB_OUTPUT"
+          ls -lh release.tgz
+
+      - uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ env.ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Upload the release
+        run: aws s3 cp release.tgz "s3://$BUCKET/releases/${{ steps.package.outputs.id }}.tgz" --only-show-errors
+
+      - name: Deploy to the web server
+        run: bash infra/server/remote-deploy.sh web "${{ steps.package.outputs.id }}"
+
+      # The detector server is usually stopped to save credit; it's updated only when running.
+      - name: Deploy to the detector server
+        run: bash infra/server/remote-deploy.sh detector "${{ steps.package.outputs.id }}"
+
+      - name: Check the public site
+        run: |
+          host="$(aws ssm get-parameter --name /bantaybuhay/site/SERVER_NAME --query Parameter.Value --output text 2>/dev/null || true)"
+          if [ -z "$host" ]; then echo "No public name recorded yet."; exit 0; fi
+          scheme=https
+          curl -sf -o /dev/null --max-time 10 "https://$host/" || scheme=http
+          curl -sf --max-time 10 "$scheme://$host/api/readyz" | grep '"status":"ready"'
+          echo "Live at $scheme://$host"

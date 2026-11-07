@@ -1,0 +1,23 @@
+[Unit]
+Description=BantayBuhay camera detector
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=bantaybuhay
+Group=bantaybuhay
+WorkingDirectory=/opt/bantaybuhay/current/services/inference
+EnvironmentFile=/etc/bantaybuhay/detector.env
+ExecStart=/opt/bantaybuhay/venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+
+[Install]
+WantedBy=multi-user.target

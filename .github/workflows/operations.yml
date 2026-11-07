@@ -1,0 +1,70 @@
+name: Server operations
+
+# Maintenance without SSH: pick an action under Actions > Server operations > Run workflow.
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: What to do
+        type: choice
+        options:
+          - status
+          - api-logs
+          - restart-api
+          - issue-certificate
+          - start-detector
+          - stop-detector
+          - detector-logs
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ap-southeast-1
+  ROLE_ARN: arn:aws:iam::195170887047:role/bantaybuhay-github-deploy
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v7
+      - uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ env.ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Run ${{ inputs.action }}
+        env:
+          ACTION: ${{ inputs.action }}
+        run: |
+          detector() {
+            aws ec2 describe-instances --filters "Name=tag:Project,Values=bantaybuhay" "Name=tag:Role,Values=detector" \
+              "Name=instance-state-name,Values=running,stopped,stopping,pending" \
+              --query 'Reservations[].Instances[].InstanceId' --output text
+          }
+          case "$ACTION" in
+            status)
+              bash infra/server/remote-run.sh web "systemctl is-active bantaybuhay-api nginx; readlink -f /opt/bantaybuhay/current; curl -s http://127.0.0.1:3000/api/readyz; echo; df -h / | tail -1; free -m | sed -n 2p" ;;
+            api-logs)
+              bash infra/server/remote-run.sh web "journalctl -u bantaybuhay-api -n 200 --no-pager" ;;
+            restart-api)
+              bash infra/server/remote-run.sh web "systemctl restart bantaybuhay-api && sleep 3 && curl -s http://127.0.0.1:3000/api/readyz" ;;
+            issue-certificate)
+              bash infra/server/remote-run.sh web "bash /opt/bantaybuhay/current/infra/server/issue-certificate.sh" ;;
+            start-detector)
+              id="$(detector)"; [ -n "$id" ] || { echo "No detector server exists."; exit 1; }
+              aws ec2 start-instances --instance-ids $id --query 'StartingInstances[].CurrentState.Name' --output text
+              aws ec2 wait instance-running --instance-ids $id
+              echo "Detector server running. It costs about US\$0.21 an hour until stopped." ;;
+            stop-detector)
+              id="$(detector)"; [ -n "$id" ] || { echo "No detector server exists."; exit 1; }
+              aws ec2 stop-instances --instance-ids $id --query 'StoppingInstances[].CurrentState.Name' --output text ;;
+            detector-logs)
+              bash infra/server/remote-run.sh detector "journalctl -u bantaybuhay-detector -n 200 --no-pager" ;;
+          esac

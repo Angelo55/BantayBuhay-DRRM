@@ -1,0 +1,27 @@
+[Unit]
+Description=BantayBuhay API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=bantaybuhay
+Group=bantaybuhay
+WorkingDirectory=/opt/bantaybuhay/current/apps/api
+EnvironmentFile=/etc/bantaybuhay/api.env
+ExecStart=/usr/local/bin/node dist/server.js
+Restart=always
+RestartSec=3
+# Hardening: the API needs only its own files and the network.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target

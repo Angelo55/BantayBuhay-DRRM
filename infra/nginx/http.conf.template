@@ -1,0 +1,13 @@
+# Before the certificate exists: serves the site over HTTP and answers Let's Encrypt's check.
+limit_req_zone $binary_remote_addr zone=api:10m rate=20r/s;
+
+server {
+    listen 80;
+    server_name ${SERVER_NAME};
+
+    location ^~ /.well-known/acme-challenge/ {
+        root /var/www/letsencrypt;
+    }
+
+    include /etc/nginx/bantaybuhay/locations.inc;
+}

@@ -1,0 +1,123 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "CreateBantayBuhayRoles",
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreateRole",
+        "iam:GetRole",
+        "iam:TagRole",
+        "iam:PutRolePolicy",
+        "iam:GetRolePolicy",
+        "iam:AttachRolePolicy",
+        "iam:ListAttachedRolePolicies",
+        "iam:UpdateAssumeRolePolicy",
+        "iam:CreateInstanceProfile",
+        "iam:GetInstanceProfile",
+        "iam:AddRoleToInstanceProfile",
+        "iam:TagInstanceProfile"
+      ],
+      "Resource": [
+        "arn:aws:iam::195170887047:role/bantaybuhay-*",
+        "arn:aws:iam::195170887047:instance-profile/bantaybuhay-*"
+      ]
+    },
+    {
+      "Sid": "OnlyTheseManagedPoliciesOnThoseRoles",
+      "Effect": "Deny",
+      "Action": "iam:AttachRolePolicy",
+      "Resource": "arn:aws:iam::195170887047:role/bantaybuhay-*",
+      "Condition": {
+        "ArnNotEquals": { "iam:PolicyARN": "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore" }
+      }
+    },
+    {
+      "Sid": "LetTheServerUseItsRole",
+      "Effect": "Allow",
+      "Action": "iam:PassRole",
+      "Resource": "arn:aws:iam::195170887047:role/bantaybuhay-ec2-*",
+      "Condition": { "StringEquals": { "iam:PassedToService": "ec2.amazonaws.com" } }
+    },
+    {
+      "Sid": "GitHubSignInForDeploys",
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreateOpenIDConnectProvider",
+        "iam:GetOpenIDConnectProvider",
+        "iam:TagOpenIDConnectProvider"
+      ],
+      "Resource": "arn:aws:iam::195170887047:oidc-provider/token.actions.githubusercontent.com"
+    },
+    {
+      "Sid": "ListGitHubSignIn",
+      "Effect": "Allow",
+      "Action": "iam:ListOpenIDConnectProviders",
+      "Resource": "*"
+    },
+    {
+      "Sid": "AppSecretsInParameterStore",
+      "Effect": "Allow",
+      "Action": [
+        "ssm:PutParameter",
+        "ssm:GetParameter",
+        "ssm:GetParameters",
+        "ssm:GetParametersByPath",
+        "ssm:DeleteParameter",
+        "ssm:AddTagsToResource"
+      ],
+      "Resource": "arn:aws:ssm:ap-southeast-1:195170887047:parameter/bantaybuhay/*"
+    },
+    {
+      "Sid": "SeeParameterNames",
+      "Effect": "Allow",
+      "Action": "ssm:DescribeParameters",
+      "Resource": "*"
+    },
+    {
+      "Sid": "RunDeployAndOpsCommandsOnBantayBuhayServers",
+      "Effect": "Allow",
+      "Action": ["ssm:SendCommand", "ssm:StartSession"],
+      "Resource": "arn:aws:ec2:ap-southeast-1:195170887047:instance/*",
+      "Condition": { "StringEquals": { "ssm:resourceTag/Project": "bantaybuhay" } }
+    },
+    {
+      "Sid": "UseTheShellCommandDocuments",
+      "Effect": "Allow",
+      "Action": ["ssm:SendCommand", "ssm:StartSession"],
+      "Resource": [
+        "arn:aws:ssm:ap-southeast-1::document/AWS-RunShellScript",
+        "arn:aws:ssm:ap-southeast-1:195170887047:document/SSM-SessionManagerRunShell"
+      ]
+    },
+    {
+      "Sid": "FollowCommandsAndSessions",
+      "Effect": "Allow",
+      "Action": [
+        "ssm:GetCommandInvocation",
+        "ssm:ListCommandInvocations",
+        "ssm:ListCommands",
+        "ssm:DescribeInstanceInformation",
+        "ssm:TerminateSession",
+        "ssm:ResumeSession"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DeployArtifactsBucket",
+      "Effect": "Allow",
+      "Action": [
+        "s3:CreateBucket",
+        "s3:PutBucketPublicAccessBlock",
+        "s3:GetBucketPublicAccessBlock",
+        "s3:PutLifecycleConfiguration",
+        "s3:PutBucketTagging",
+        "s3:PutEncryptionConfiguration",
+        "s3:ListBucket",
+        "s3:PutObject",
+        "s3:GetObject"
+      ],
+      "Resource": ["arn:aws:s3:::bantaybuhay-deploy-195170887047", "arn:aws:s3:::bantaybuhay-deploy-195170887047/*"]
+    }
+  ]
+}

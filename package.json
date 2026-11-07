@@ -20,6 +20,7 @@
     "db:check": "npm run db:check -w @bantaybuhay/api",
     "db:seed": "npm run db:seed -w @bantaybuhay/api",
     "accounts": "node scripts/accounts.mjs",
+    "deploy:secrets": "node scripts/deploy-secrets.mjs",
     "check:roles": "npm run check:roles -w @bantaybuhay/api",
     "build": "npm run build --workspaces --if-present",
     "lint": "eslint .",

@@ -20,7 +20,7 @@ export default tseslint.config(
   },
   {
     // Plain Node scripts, such as the test database helper.
-    files: ["scripts/**/*.mjs"],
+    files: ["scripts/**/*.mjs", "infra/**/*.mjs"],
     languageOptions: {
       globals: { process: "readonly", console: "readonly", fetch: "readonly", URL: "readonly" },
     },
