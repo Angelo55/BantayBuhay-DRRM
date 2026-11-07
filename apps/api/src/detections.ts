@@ -39,7 +39,8 @@ export interface DetectionRouteOptions {
   guards: Guards;
   notify: Notifier;
   detectorToken?: string;
-  snapshotDir: string;
+  // Where snapshots are written. Without it, detections that include a snapshot are refused.
+  snapshotDir?: string;
 }
 
 // Joins the open incident of the same type from the same camera, or raises a new one.
@@ -83,7 +84,6 @@ export const detectionRoutes: FastifyPluginAsyncZod<DetectionRouteOptions> = asy
   const { db, guards, notify, detectorToken, snapshotDir } = options;
   const operators = guards.requireRole("admin", "operator");
   const staff = guards.requireRole("admin", "operator", "responder");
-  await mkdir(snapshotDir, { recursive: true });
 
   // The inference service proves itself with a shared token, compared in constant time.
   // It runs on request, before body validation, so a caller without it learns nothing.
@@ -133,7 +133,12 @@ export const detectionRoutes: FastifyPluginAsyncZod<DetectionRouteOptions> = asy
 
       const id = randomUUID();
       const snapshotPath = image ? `${id}.jpg` : null;
-      if (image) await writeFile(join(snapshotDir, snapshotPath!), image);
+      if (image) {
+        if (!snapshotDir) throw new HttpError(503, "Snapshot storage isn't configured");
+        // Created on first use, so starting the API never touches the filesystem.
+        await mkdir(snapshotDir, { recursive: true });
+        await writeFile(join(snapshotDir, snapshotPath!), image);
+      }
       const alerting = confidence >= thresholds.alert;
 
       const result = await inTransaction(db, async (client) => {
@@ -257,6 +262,7 @@ export const detectionRoutes: FastifyPluginAsyncZod<DetectionRouteOptions> = asy
       }
       if (!allowed) throw new HttpError(404, "Snapshot not found");
 
+      if (!snapshotDir) throw new HttpError(404, "Snapshot not found");
       const image = await readFile(join(snapshotDir, found!.snapshotPath!));
       await audit(db, {
         actorId: user.id,

@@ -46,7 +46,7 @@ export function buildApp({
   loginAttemptsPerMinute = 10,
   realtimeAdapter,
   detectorToken,
-  snapshotDir = "/data/snapshots",
+  snapshotDir,
 }: AppOptions) {
   // Nginx is the only route in, so the address it forwards can be trusted.
   const app = Fastify({ logger, trustProxy: true }).withTypeProvider<ZodTypeProvider>();
