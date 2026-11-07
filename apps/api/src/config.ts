@@ -7,6 +7,9 @@ const envSchema = z.object({
   PORT: z.coerce.number().int().positive().default(3000),
   // Only an explicit "false" turns this off, for local HTTP without TLS.
   COOKIE_SECURE: z.string().optional(),
+  // The inference service's shared secret. Without it, the detection endpoints refuse everything.
+  DETECTOR_TOKEN: z.string().min(32).optional(),
+  SNAPSHOT_DIR: z.string().default("/data/snapshots"),
 });
 
 export interface Config {
@@ -15,6 +18,8 @@ export interface Config {
   host: string;
   port: number;
   cookieSecure: boolean;
+  detectorToken?: string;
+  snapshotDir: string;
 }
 
 export function loadConfig(env: Record<string, string | undefined>): Config {
@@ -24,12 +29,15 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
     const names = result.error.issues.map((issue) => issue.path.join(".")).join(", ");
     throw new Error(`Invalid environment variables: ${names}`);
   }
-  const { DATABASE_URL, REDIS_URL, HOST, PORT, COOKIE_SECURE } = result.data;
+  const { DATABASE_URL, REDIS_URL, HOST, PORT, COOKIE_SECURE, DETECTOR_TOKEN, SNAPSHOT_DIR } =
+    result.data;
   return {
     databaseUrl: DATABASE_URL,
     redisUrl: REDIS_URL,
     host: HOST,
     port: PORT,
     cookieSecure: COOKIE_SECURE !== "false",
+    detectorToken: DETECTOR_TOKEN,
+    snapshotDir: SNAPSHOT_DIR,
   };
 }

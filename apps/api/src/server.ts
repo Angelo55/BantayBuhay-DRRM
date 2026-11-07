@@ -23,6 +23,8 @@ const app = buildApp({
   logger: true,
   db: pool,
   cookieSecure: config.cookieSecure,
+  detectorToken: config.detectorToken,
+  snapshotDir: config.snapshotDir,
   realtimeAdapter: createAdapter(pubClient, subClient),
   checks: {
     // PostGIS_Version also proves the spatial extension is available.

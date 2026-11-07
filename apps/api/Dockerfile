@@ -28,6 +28,8 @@ COPY --from=build /repo/packages/shared/dist packages/shared/dist
 COPY --from=build /repo/apps/api/package.json apps/api/package.json
 COPY --from=build /repo/apps/api/dist apps/api/dist
 COPY --from=build /repo/apps/api/migrations apps/api/migrations
+# Snapshots live on a volume; creating the folder here gives it the right owner.
+RUN mkdir -p /data/snapshots && chown node:node /data/snapshots
 USER node
 EXPOSE 3000
 CMD ["node", "apps/api/dist/server.js"]

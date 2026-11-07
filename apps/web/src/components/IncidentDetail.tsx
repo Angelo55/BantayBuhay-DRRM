@@ -152,6 +152,22 @@ export function IncidentDetail({ incident, role, now, onChanged, onClose }: Deta
           {canAssign(incident, role) && <AssignResponder incident={incident} onChanged={onChanged} />}
         </section>
 
+        {incident.source === "detection" && (
+          <section>
+            <h3 className="text-[15px] font-bold text-ink">Camera</h3>
+            <p className="mt-1 text-[15px] text-muted">Raised by {incident.cameraName ?? "a camera"}</p>
+            {incident.snapshotDetectionId && (
+              <img
+                key={incident.snapshotDetectionId}
+                src={`/api/detections/${incident.snapshotDetectionId}/snapshot`}
+                alt={`Latest snapshot from ${incident.cameraName ?? "the camera"}`}
+                loading="lazy"
+                className="mt-2 w-full rounded-md border border-line"
+              />
+            )}
+          </section>
+        )}
+
         {incident.description && (
           <section>
             <h3 className="text-[15px] font-bold text-ink">Notes</h3>

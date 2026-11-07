@@ -34,7 +34,9 @@ export const mapRoutes: FastifyPluginAsyncZod<{ db: pg.Pool; guards: Guards }> =
     },
     async () => {
       const { rows } = await db.query(
-        `SELECT cameras.id, cameras.name, cameras.status, cameras.is_simulated AS "isSimulated",
+        `SELECT cameras.id, cameras.name, cameras.is_simulated AS "isSimulated",
+                CASE WHEN cameras.last_seen_at > now() - interval '30 seconds'
+                     THEN 'online' ELSE 'offline' END AS status,
                 ST_Y(cameras.location) AS latitude, ST_X(cameras.location) AS longitude,
                 barangays.name AS "barangayName"
          FROM cameras LEFT JOIN barangays ON barangays.psgc = cameras.barangay_psgc

@@ -17,13 +17,19 @@ const COLUMNS = `incidents.id, incidents.incident_type AS "incidentType", incide
   incidents.status, incidents.description, ST_Y(incidents.location) AS latitude,
   ST_X(incidents.location) AS longitude, incidents.barangay_psgc AS "barangayPsgc",
   barangays.name AS "barangayName", incidents.detected_at AS "detectedAt",
+  incidents.source, cameras.name AS "cameraName",
+  (SELECT detections.id FROM detections
+   WHERE detections.incident_id = incidents.id AND detections.snapshot_path IS NOT NULL
+   ORDER BY detections.captured_at DESC LIMIT 1) AS "snapshotDetectionId",
   incidents.acknowledged_at AS "acknowledgedAt", incidents.resolved_at AS "resolvedAt",
   COALESCE((SELECT json_agg(json_build_object('id', users.id, 'fullName', users.full_name)
               ORDER BY assignments.assigned_at)
             FROM assignments JOIN users ON users.id = assignments.responder_id
             WHERE assignments.incident_id = incidents.id AND assignments.released_at IS NULL),
            '[]') AS responders`;
-const FROM = "incidents LEFT JOIN barangays ON barangays.psgc = incidents.barangay_psgc";
+const FROM = `incidents
+  LEFT JOIN barangays ON barangays.psgc = incidents.barangay_psgc
+  LEFT JOIN cameras ON cameras.id = incidents.camera_id`;
 
 const ASSIGNABLE: readonly IncidentStatus[] = ["verified", "dispatched", "on_scene"];
 const RESPONDER_MAY_SET: readonly IncidentStatus[] = ["on_scene", "resolved"];
@@ -31,7 +37,7 @@ const CLOSED: readonly IncidentStatus[] = ["resolved", "dismissed"];
 
 const idParams = z.object({ id: z.uuid() });
 
-class HttpError extends Error {
+export class HttpError extends Error {
   constructor(
     readonly statusCode: number,
     message: string,
@@ -40,7 +46,7 @@ class HttpError extends Error {
   }
 }
 
-async function inTransaction<T>(db: pg.Pool, work: (client: pg.PoolClient) => Promise<T>) {
+export async function inTransaction<T>(db: pg.Pool, work: (client: pg.PoolClient) => Promise<T>) {
   const client = await db.connect();
   try {
     await client.query("BEGIN");
@@ -74,7 +80,7 @@ async function isAssigned(db: pg.Pool | pg.PoolClient, incidentId: string, respo
   return rowCount !== 0;
 }
 
-async function readIncident(db: pg.Pool | pg.PoolClient, id: string) {
+export async function readIncident(db: pg.Pool | pg.PoolClient, id: string) {
   const { rows } = await db.query(`SELECT ${COLUMNS} FROM ${FROM} WHERE incidents.id = $1`, [id]);
   return rows[0];
 }

@@ -3,17 +3,25 @@ import { api } from "../lib/api";
 import { SEVERITY_COLOR, SEVERITY_LABEL, TYPE_LABEL } from "../lib/labels";
 import { useNow } from "../lib/time";
 import type { BarangayCollection, Camera, Incident, User } from "../lib/types";
-import { useIncidents, type Connection } from "../lib/useIncidents";
+import { createSocket, useIncidents, type Connection } from "../lib/useIncidents";
+import { useReviewQueue } from "../lib/useReviewQueue";
 import { IncidentDetail } from "./IncidentDetail";
 import { IncidentMap } from "./IncidentMap";
 import { IncidentQueue } from "./IncidentQueue";
 import { ReportIncident } from "./ReportIncident";
+import { ReviewDetail } from "./ReviewDetail";
 
-type Panel = { kind: "none" } | { kind: "incident"; id: string } | { kind: "report" };
+type Panel =
+  | { kind: "none" }
+  | { kind: "incident"; id: string }
+  | { kind: "review"; id: string }
+  | { kind: "report" };
 
 export function Console({ user, onSignOut }: { user: User; onSignOut: () => void }) {
   const isOperator = user.role === "operator" || user.role === "admin";
-  const { incidents, connection, newest, loadError, upsert } = useIncidents();
+  const [socket] = useState(createSocket);
+  const { incidents, connection, newest, loadError, upsert } = useIncidents(socket);
+  const { pending, remove } = useReviewQueue(socket, isOperator);
   const [barangays, setBarangays] = useState<BarangayCollection | null>(null);
   const [cameras, setCameras] = useState<Camera[]>([]);
   const [panel, setPanel] = useState<Panel>({ kind: "none" });
@@ -24,9 +32,14 @@ export function Console({ user, onSignOut }: { user: User; onSignOut: () => void
 
   useEffect(() => {
     api<BarangayCollection>("/api/barangays").then(setBarangays).catch(() => setBarangays(null));
-    api<{ cameras: Camera[] }>("/api/cameras")
-      .then((body) => setCameras(body.cameras))
-      .catch(() => setCameras([]));
+    // Camera status comes from detector heartbeats, so refresh it now and then.
+    const loadCameras = () =>
+      api<{ cameras: Camera[] }>("/api/cameras")
+        .then((body) => setCameras(body.cameras))
+        .catch(() => setCameras([]));
+    void loadCameras();
+    const timer = setInterval(loadCameras, 30_000);
+    return () => clearInterval(timer);
   }, []);
 
   // The newest incident raises a banner until someone opens or dismisses it.
@@ -34,6 +47,7 @@ export function Console({ user, onSignOut }: { user: User; onSignOut: () => void
     isOperator && newest && newest.id !== dismissedAlertId ? newest : null;
 
   const selected = panel.kind === "incident" ? incidents.find((item) => item.id === panel.id) : undefined;
+  const reviewing = panel.kind === "review" ? pending.find((item) => item.id === panel.id) : undefined;
   const select = (id: string) => {
     setPanel({ kind: "incident", id });
     if (alert?.id === id) setDismissedAlertId(id);
@@ -116,6 +130,9 @@ export function Console({ user, onSignOut }: { user: User; onSignOut: () => void
             incidents={incidents}
             selectedId={panel.kind === "incident" ? panel.id : null}
             onSelect={select}
+            reviews={isOperator ? pending : []}
+            selectedReviewId={panel.kind === "review" ? panel.id : null}
+            onSelectReview={(id) => setPanel({ kind: "review", id })}
             now={now}
             emptyMessage={
               isOperator
@@ -139,9 +156,15 @@ export function Console({ user, onSignOut }: { user: User; onSignOut: () => void
 
         {panel.kind !== "none" && (
           <aside
-            aria-label={panel.kind === "report" ? "Report an incident" : "Incident details"}
+            aria-label={
+              panel.kind === "report"
+                ? "Report an incident"
+                : panel.kind === "review"
+                  ? "Review a detection"
+                  : "Incident details"
+            }
             className={`absolute inset-x-0 bottom-0 z-10 max-h-[70%] overflow-hidden border-t border-line bg-surface shadow-2xl lg:static lg:max-h-none lg:w-[400px] lg:shrink-0 lg:border-l lg:border-t-0 lg:shadow-none ${
-              panel.kind === "incident" ? "top-0 max-h-none" : ""
+              panel.kind === "incident" || panel.kind === "review" ? "top-0 max-h-none" : ""
             }`}
           >
             {panel.kind === "report" && (
@@ -152,6 +175,22 @@ export function Console({ user, onSignOut }: { user: User; onSignOut: () => void
                   upsert(incident);
                   setPoint(null);
                   setPanel({ kind: "incident", id: incident.id });
+                }}
+              />
+            )}
+            {panel.kind === "review" && reviewing && (
+              <ReviewDetail
+                detection={reviewing}
+                now={now}
+                onClose={() => setPanel({ kind: "none" })}
+                onDone={(detectionId, incident) => {
+                  remove(detectionId);
+                  if (incident) {
+                    upsert(incident);
+                    setPanel({ kind: "incident", id: incident.id });
+                  } else {
+                    setPanel({ kind: "none" });
+                  }
                 }}
               />
             )}

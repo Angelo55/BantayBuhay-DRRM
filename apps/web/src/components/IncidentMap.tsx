@@ -129,7 +129,7 @@ export function IncidentMap({ barangays, cameras, incidents, selectedId, onSelec
           paint: {
             "circle-radius": 4,
             "circle-color": GROUND,
-            "circle-stroke-color": "#6CC4D4",
+            "circle-stroke-color": ["case", ["get", "online"], "#6CC4D4", "#6E8A9A"],
             "circle-stroke-width": 2,
           },
         });
@@ -193,7 +193,7 @@ export function IncidentMap({ barangays, cameras, incidents, selectedId, onSelec
       type: "FeatureCollection",
       features: cameras.map((camera) => ({
         type: "Feature",
-        properties: { id: camera.id, name: camera.name },
+        properties: { id: camera.id, name: camera.name, online: camera.status === "online" },
         geometry: { type: "Point", coordinates: [camera.longitude, camera.latitude] },
       })),
     });

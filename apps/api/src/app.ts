@@ -13,6 +13,7 @@ import type pg from "pg";
 import { adminRoutes } from "./admin.js";
 import { authRoutes, createGuards } from "./auth.js";
 import { incidentRoutes } from "./incidents.js";
+import { detectionRoutes } from "./detections.js";
 import { mapRoutes } from "./map.js";
 import { attachRealtime } from "./realtime.js";
 import type { ServerOptions } from "socket.io";
@@ -29,6 +30,8 @@ export interface AppOptions {
   loginAttemptsPerMinute?: number;
   // Shares live updates across API instances, for example during a blue/green deploy.
   realtimeAdapter?: ServerOptions["adapter"];
+  detectorToken?: string;
+  snapshotDir?: string;
 }
 
 const TWELVE_HOURS_MS = 12 * 60 * 60 * 1000;
@@ -42,6 +45,8 @@ export function buildApp({
   sessionTtlMs = TWELVE_HOURS_MS,
   loginAttemptsPerMinute = 10,
   realtimeAdapter,
+  detectorToken,
+  snapshotDir = "/data/snapshots",
 }: AppOptions) {
   // Nginx is the only route in, so the address it forwards can be trusted.
   const app = Fastify({ logger, trustProxy: true }).withTypeProvider<ZodTypeProvider>();
@@ -97,6 +102,7 @@ export function buildApp({
   const notify = attachRealtime(app, db, realtimeAdapter);
   app.register(incidentRoutes, { db, guards, notify });
   app.register(mapRoutes, { db, guards });
+  app.register(detectionRoutes, { db, guards, notify, detectorToken, snapshotDir });
 
   app.get(
     "/api/openapi.json",

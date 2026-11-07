@@ -15,6 +15,9 @@ const base: Incident = {
   acknowledgedAt: null,
   resolvedAt: null,
   responders: [],
+  source: "report",
+  cameraName: null,
+  snapshotDetectionId: null,
 };
 const responder = { id: "r1", fullName: "Dennis Alipao" };
 const labels = (incident: Partial<Incident>, role: Parameters<typeof nextActions>[1]) =>

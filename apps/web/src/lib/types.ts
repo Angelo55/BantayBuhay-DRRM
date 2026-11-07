@@ -15,6 +15,22 @@ export interface Incident {
   acknowledgedAt: string | null;
   resolvedAt: string | null;
   responders: { id: string; fullName: string }[];
+  source: "report" | "detection";
+  cameraName: string | null;
+  snapshotDetectionId: string | null;
+}
+
+export interface PendingDetection {
+  id: string;
+  cameraId: string;
+  incidentType: IncidentType;
+  confidence: number;
+  modelVersion: string;
+  capturedAt: string;
+  reviewStatus: "pending" | "confirmed" | "rejected";
+  hasSnapshot: boolean;
+  cameraName: string;
+  barangayName: string | null;
 }
 
 export interface IncidentEvent {

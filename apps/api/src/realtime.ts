@@ -13,6 +13,8 @@ export interface IncidentPayload {
 export interface Notifier {
   // Operators see every incident. Responders see only their own, plus any listed in alsoTo.
   incident(event: IncidentEvent, incident: IncidentPayload, alsoTo?: string[]): void;
+  // Events only operators need, such as the detection review queue.
+  operators(event: "detection.pending" | "detection.reviewed", payload: unknown): void;
 }
 
 export function attachRealtime(
@@ -53,6 +55,9 @@ export function attachRealtime(
         (id) => `user:${id}`,
       );
       io.to(["operators", ...responderRooms]).emit(event, incident);
+    },
+    operators(event, payload) {
+      io.to("operators").emit(event, payload);
     },
   };
 }

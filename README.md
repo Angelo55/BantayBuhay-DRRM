@@ -2,7 +2,7 @@
 
 AI-assisted Disaster Risk Reduction and Management (DRRM) incident detection and response platform. The primary deployment target and map coverage is Kabankalan City, Negros Occidental.
 
-> **Status: early build. Not production-ready.** Operators can sign in, see the Kabankalan map, and receive, acknowledge, verify, assign and dispatch incidents live. Responders see only their own incidents. Camera detection and medical profiles come next. See [DESIGN.md](DESIGN.md) for the interface design. The upstream prototype is kept in [`legacy/`](legacy/) for reference only; see [the Phase 0 audit](docs/phase-0/AUDIT.md) before reusing any of it.
+> **Status: early build. Not production-ready.** Operators can sign in, see the Kabankalan map, and receive, acknowledge, verify, assign and dispatch incidents live. Responders see only their own incidents. Six simulated cameras feed a detection service: person-down detection works, and uncertain detections wait in a review queue. Fire, flood and SOS detection and medical profiles come next. See [DESIGN.md](DESIGN.md) for the interface design. The upstream prototype is kept in [`legacy/`](legacy/) for reference only; see [the Phase 0 audit](docs/phase-0/AUDIT.md) before reusing any of it.
 
 ## Run it locally
 
@@ -12,7 +12,11 @@ You need Docker Desktop and Git Bash. This builds and starts the stack, creates 
 bash infra/smoke.sh
 ```
 
-Then open <http://127.0.0.1:8080>. To stop the stack:
+Then open <http://127.0.0.1:8080>.
+
+**Camera footage:** each simulated camera plays `media/sim/<name>.mp4` on a loop, and shows a test pattern if that file is missing. The names are `barangay-1`, `binicuil`, `tagukon`, `hilamonan`, `tampalon` and `camansi`. The `media/` folder is git-ignored, so footage never enters the repository. After adding a clip, run `docker compose restart mediamtx`.
+
+To stop the stack:
 
 ```bash
 docker compose down
@@ -50,9 +54,9 @@ python -m venv .venv && .venv/Scripts/python -m pip install -r requirements-dev.
 | --- | --- |
 | `apps/web` | React web app |
 | `apps/api` | Fastify API |
-| `services/inference` | FastAPI inference service |
+| `services/inference` | Detection service: reads camera streams and reports what persists |
 | `packages/shared` | Types shared by the web app and API |
-| `infra` | Nginx configuration and smoke test |
+| `infra` | Nginx, MediaMTX camera simulation, smoke test and seed script |
 | `legacy` | Upstream prototype, not built or run |
 
 ## Credits

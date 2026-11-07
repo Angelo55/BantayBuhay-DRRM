@@ -30,6 +30,23 @@ export function canTransition(from: IncidentStatus, to: IncidentStatus): boolean
   return TRANSITIONS[from].includes(to);
 }
 
+// Confidence at or above "alert" raises an incident; between "review" and "alert" it waits
+// for an operator; below "review" it's dropped. Tuned per type once there's real footage.
+export const DETECTION_THRESHOLDS: Record<IncidentType, { alert: number; review: number }> = {
+  fire_smoke: { alert: 0.6, review: 0.35 },
+  person_down: { alert: 0.6, review: 0.35 },
+  flood: { alert: 0.6, review: 0.35 },
+  sos_gesture: { alert: 0.6, review: 0.35 },
+};
+
+// The severity a camera detection starts with. Operators can't change it yet.
+export const DETECTION_SEVERITY: Record<IncidentType, Severity> = {
+  fire_smoke: "high",
+  person_down: "high",
+  flood: "medium",
+  sos_gesture: "critical",
+};
+
 export type DependencyStatus = "ok" | "down";
 
 export interface ReadinessResponse {

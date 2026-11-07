@@ -1,4 +1,8 @@
+import os
+
 from fastapi.testclient import TestClient
+
+os.environ["WORKERS_ENABLED"] = "false"
 
 from app.main import app
 
