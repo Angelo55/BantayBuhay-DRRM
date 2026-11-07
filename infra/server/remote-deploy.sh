@@ -21,8 +21,9 @@ if [ -z "$instances" ]; then
 fi
 
 dir="/opt/bantaybuhay/releases/$release"
+# SSM runs these with sh, not bash, so no pipefail here; activate.sh itself runs under bash.
 commands=$(cat <<EOF
-set -euo pipefail
+set -eu
 aws s3 cp --region $region s3://$bucket/releases/$release.tgz /tmp/$release.tgz --only-show-errors
 mkdir -p $dir
 tar -xzf /tmp/$release.tgz -C $dir
