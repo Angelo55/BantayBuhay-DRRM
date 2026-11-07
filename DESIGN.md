@@ -70,7 +70,12 @@ Both fonts are self-hosted under the SIL Open Font License.
 
 ## Components
 
-All in `apps/web/src/ui`: `Button`, `IconButton`, `Card`, `IconTile`, `ListCard`, `Stat`, `CountBadge`, `StatusPill`, `SeverityBadge`, `SeverityShape`, `Field`, `Input`, `Select`, `Textarea`, `SegmentedControl`, `Rail`, `MapCallout`, `MapPill`, `AlertBanner`, `Toast`, `Modal`, `Skeleton`, `EmptyState`, `ErrorState`, `OfflineNotice`, `SwipeToConfirm`, `ThemeToggle`.
+All in `apps/web/src/ui`: `Button`, `IconButton`, `Card`, `IconTile`, `ListCard`, `Stat`, `CountBadge`, `StatusPill`, `SeverityBadge`, `SeverityShape`, `Field`, `Input`, `Select`, `Textarea`, `SegmentedControl`, `ChoiceCard`, `ChoiceGroup`, `Rail`, `MapCallout`, `MapPill`, `AlertBanner`, `Toast`, `Modal`, `Skeleton`, `EmptyState`, `ErrorState`, `OfflineNotice`, `SwipeToConfirm`, `ThemeToggle`, and the incident icons in `icons.tsx`.
+
+- `Button` has an `inherit` variant for buttons on a colored surface, such as Dismiss on the critical banner.
+- `ChoiceCard` wraps a real radio input, so card-style choices keep arrow keys and screen reader support.
+- `.glass` is a Tailwind utility, so it works with variants such as `lg:glass`.
+- The map can't use classes, so `IncidentMap` reads the `--bb-*` variables at load and is remounted when the theme changes.
 
 ## Domain overrides
 
@@ -88,7 +93,14 @@ Emergency use comes before the reference's subtlety:
 
 | Date | Screen | Inconsistency with the reference | Status |
 |---|---|---|---|
-| 2026-11-07 | Operator console, login, responder view | Built before the reference, so they use the legacy dark tokens | To be rebuilt on the component library after the style guide is approved |
+| 2026-11-07 | Operator console, login, responder view | Built before the reference, so they use the legacy dark tokens | Fixed: rebuilt on the component library, legacy tokens and classes deleted |
+| 2026-11-07 | Operator console | Matches the reference's layout: full-bleed map, black rail with butter active item, frosted header with light numerals, frosted list column with stacked cards that turn black when selected. Checked in light, dark and at 375 px, with no horizontal overflow | Matches |
+| 2026-11-07 | Incident, review and report panels | The reference's large panels are frosted. Map shapes showing through the frost made action text harder to read, so these panels are solid cards. The header and list stay frosted | Deliberate, legibility |
+| 2026-11-07 | Incident panel progress | Five step labels crowded each other at 420 px, so the bar shows one line: current step, step number and next step | Deliberate, legibility |
+| 2026-11-07 | Map | The reference's map is a soft illustration; BantayBuhay uses OpenFreeMap's Positron (light) and Dark styles so streets and barangay names stay readable. Markers carry a 2 px ink ring | Deliberate, override 2 |
+| 2026-11-07 | Report form | The chosen spot is a butter pin with an ink ring; the old screen showed only coordinates | Fixed |
+| 2026-11-07 | Toast | On desktop the toast is centered and can sit over the bottom of the incident panel for its 4 seconds | Open: anchor it to the map area |
+| 2026-11-07 | Responder view and civilian home | Built with the same components, but not yet checked in the browser after the rebuild | Open: check signed in as a responder and a civilian |
 | 2026-11-07 | Style guide | Matches the reference's canvas, glass panel, black rail with butter active item, black pills, butter selection and 24 to 40 px radii. Checked in light, dark and at 375 px, with no horizontal overflow | Matches |
 | 2026-11-07 | Style guide, icons | The reference uses 3D illustrations in tiles; BantayBuhay uses outline icons (by design). The person-down icon is a rotated standing figure and reads weakly | Open: replace with a custom icon or the camera snapshot |
 | 2026-11-07 | Style guide, severity | The reference marks alerts with a tiny red dot; BantayBuhay shows shape, word and color, and a full red banner for critical | Deliberate, override 1 |

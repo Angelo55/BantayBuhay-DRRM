@@ -130,23 +130,6 @@
   --ease-in-out-soft: cubic-bezier(0.65, 0, 0.35, 1);
 }
 
-/*
- * Legacy tokens, used only by the screens built before the reference design.
- * They're removed when those screens are rebuilt on the component library.
- */
-@theme {
-  --color-ground: #0f1b24;
-  --color-surface: #16252f;
-  --color-raised: #1d3140;
-  --color-line: #3a5262;
-  --color-ink: #e8eef1;
-  --color-muted: #9fb2bd;
-  --color-action: #6cc4d4;
-  --color-sev-low: #5aa9f0;
-  --color-sev-medium: #f2c230;
-  --color-sev-high: #f28c28;
-  --color-sev-critical: #ff6166;
-}
 
 body {
   background-color: var(--bb-canvas);
@@ -159,12 +142,11 @@ body {
   outline-offset: 2px;
 }
 
-.glass {
+/* A utility, not a plain class, so it works with variants such as lg:glass. */
+@utility glass {
   background-color: var(--bb-glass-solid);
   border: 1px solid var(--bb-glass-edge);
-}
-@supports (backdrop-filter: blur(1px)) {
-  .glass {
+  @supports (backdrop-filter: blur(1px)) {
     background-color: var(--bb-glass);
     backdrop-filter: blur(24px) saturate(140%);
   }
@@ -195,20 +177,10 @@ body {
   }
 }
 
-/* Legacy component classes for the pre-reference screens. */
-@layer components {
-  .field {
-    @apply block min-h-11 w-full rounded-md border border-line bg-raised px-3 py-2 text-[15px] text-ink;
-  }
-  .button-primary {
-    @apply inline-flex min-h-11 items-center justify-center rounded-md bg-action px-4 text-[15px] font-bold text-ground hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50;
-  }
-  .button-secondary {
-    @apply inline-flex min-h-11 items-center justify-center rounded-md border border-action px-4 text-[15px] font-bold text-ink hover:bg-raised disabled:cursor-not-allowed disabled:opacity-50;
-  }
-  .button-quiet {
-    @apply inline-flex min-h-11 items-center justify-center rounded-md px-3 text-[15px] text-muted underline-offset-4 hover:text-ink hover:underline disabled:cursor-not-allowed disabled:opacity-50;
-  }
+/* Choice cards hide their radio input, so the card shows the keyboard focus ring. */
+.choice-card:has(:focus-visible) {
+  outline: 3px solid var(--bb-focus);
+  outline-offset: 2px;
 }
 
 .maplibregl-ctrl-attrib {

@@ -15,6 +15,10 @@ export function useIncidents(socket: Socket) {
   const [connection, setConnection] = useState<Connection>("connecting");
   const [newest, setNewest] = useState<Incident | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  // False until the first load answers, so screens can show a skeleton instead of "all quiet".
+  const [loaded, setLoaded] = useState(false);
+  // When the live connection dropped, so screens can say how old what they show is.
+  const [offlineSince, setOfflineSince] = useState<string | null>(null);
 
   const upsert = useCallback((incident: Incident) => {
     setIncidents((list) => {
@@ -33,6 +37,8 @@ export function useIncidents(socket: Socket) {
       setLoadError(null);
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : "Couldn't load incidents");
+    } finally {
+      setLoaded(true);
     }
   }, []);
 
@@ -40,9 +46,13 @@ export function useIncidents(socket: Socket) {
     // The database is the source of truth: reload everything after every (re)connection.
     const connected = () => {
       setConnection("live");
+      setOfflineSince(null);
       void refresh();
     };
-    const lost = () => setConnection("offline");
+    const lost = () => {
+      setConnection("offline");
+      setOfflineSince((since) => since ?? new Date().toLocaleTimeString("en-PH", { timeStyle: "short" }));
+    };
     const created = (incident: Incident) => {
       upsert(incident);
       setNewest(incident);
@@ -63,5 +73,5 @@ export function useIncidents(socket: Socket) {
     };
   }, [socket, refresh, upsert]);
 
-  return { incidents, connection, newest, loadError, upsert, refresh };
+  return { incidents, connection, offlineSince, newest, loadError, loaded, upsert, refresh };
 }

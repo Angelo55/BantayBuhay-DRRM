@@ -5,7 +5,8 @@ import { api } from "../lib/api";
 import { STATUS_LABEL, STEPS, TYPE_LABEL } from "../lib/labels";
 import { fullTime, timeAgo } from "../lib/time";
 import type { Incident, IncidentEvent, Responder } from "../lib/types";
-import { SeverityBadge } from "./SeverityBadge";
+import { Button, ChoiceCard, ChoiceGroup, Modal, SeverityBadge, SwipeToConfirm, cx } from "../ui";
+import { InlineError, PanelHeader, PanelSection } from "./PanelHeader";
 
 interface DetailProps {
   incident: Incident;
@@ -13,12 +14,23 @@ interface DetailProps {
   now: number;
   onChanged: (incident: Incident) => void;
   onClose: () => void;
+  onToast: (message: string) => void;
 }
 
-export function IncidentDetail({ incident, role, now, onChanged, onClose }: DetailProps) {
+// What the toast says after each action, using the same words as the button.
+function doneMessage(action: IncidentAction): string {
+  if (action.kind === "acknowledge") return "Acknowledged";
+  if (action.to === "dismissed") return "Closed as a false alarm";
+  return action.to ? STATUS_LABEL[action.to] : "Saved";
+}
+
+export function IncidentDetail({ incident, role, now, onChanged, onClose, onToast }: DetailProps) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [events, setEvents] = useState<IncidentEvent[]>([]);
+  const [confirmDismiss, setConfirmDismiss] = useState(false);
+  // Remounts the swipe control if a dispatch fails, so it can be tried again.
+  const [attempt, setAttempt] = useState(0);
 
   // Reload the history whenever the incident changes, including live updates.
   useEffect(() => {
@@ -37,174 +49,213 @@ export function IncidentDetail({ incident, role, now, onChanged, onClose }: Deta
     try {
       const body =
         action.kind === "acknowledge"
-          ? await api<{ incident: Incident }>(`/api/incidents/${incident.id}/acknowledge`, {
-              method: "POST",
-            })
+          ? await api<{ incident: Incident }>(`/api/incidents/${incident.id}/acknowledge`, { method: "POST" })
           : await api<{ incident: Incident }>(`/api/incidents/${incident.id}/status`, {
               method: "POST",
               body: { to: action.to },
             });
       onChanged(body.incident);
+      onToast(doneMessage(action));
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "That didn't work. Try again.");
+      setAttempt((count) => count + 1);
     } finally {
       setBusy(false);
     }
   }
 
   const actions = nextActions(incident, role);
+  const dismissAction = actions.find((action) => action.to === "dismissed");
   const dismissed = incident.status === "dismissed";
   const reached = STEPS.indexOf(incident.status);
+  const place = incident.barangayName ?? "Outside mapped barangays";
 
   return (
     <article aria-labelledby="incident-title" className="flex h-full flex-col">
-      <header className="flex items-start justify-between gap-3 border-b border-line px-5 py-4">
-        <div>
-          <SeverityBadge severity={incident.severity} />
-          <h2 id="incident-title" className="mt-2 text-[21px] font-bold leading-tight text-ink">
-            {TYPE_LABEL[incident.incidentType]}
-          </h2>
-          <p className="mt-0.5 text-[15px] text-muted">
-            {incident.barangayName ?? "Outside mapped barangays"}, detected{" "}
+      <PanelHeader
+        titleId="incident-title"
+        title={TYPE_LABEL[incident.incidentType]}
+        above={<SeverityBadge severity={incident.severity} />}
+        meta={
+          <>
+            {place}, detected{" "}
             <time dateTime={incident.detectedAt} title={fullTime(incident.detectedAt)}>
               {timeAgo(incident.detectedAt, now)}
             </time>
-          </p>
-        </div>
-        <button type="button" onClick={onClose} className="button-quiet" aria-label="Close incident details">
-          Close
-        </button>
-      </header>
+          </>
+        }
+        closeLabel="Close incident details"
+        onClose={onClose}
+      />
 
-      <div className="flex-1 space-y-6 overflow-y-auto px-5 py-5">
+      <div className="flex-1 space-y-7 overflow-y-auto px-6 pt-5 pb-8">
         {dismissed ? (
-          <p className="text-[15px] font-bold text-ink">Closed as a false alarm</p>
+          <p className="rounded-card bg-card-muted px-4 py-3 text-[15px] font-bold">Closed as a false alarm</p>
         ) : (
           <div>
-            <ol className="grid grid-cols-5 gap-1" aria-label="Incident progress">
+            <ol className="grid grid-cols-5 gap-1.5" aria-label="Incident progress">
               {STEPS.map((step, index) => (
                 <li key={step} aria-current={index === reached ? "step" : undefined}>
-                  <span className={`block h-1.5 rounded-full ${index <= reached ? "bg-action" : "bg-line"}`} />
-                  {/* Every label fits on wide panels; phones show only the current step below. */}
-                  <span
-                    className={`mt-1.5 hidden text-[13px] sm:block ${index === reached ? "font-bold text-ink" : "text-muted"}`}
-                  >
-                    {STATUS_LABEL[step]}
-                  </span>
-                  <span className="sr-only sm:hidden">{STATUS_LABEL[step]}</span>
+                  <span className={cx("block h-2 rounded-full", index <= reached ? "bg-inverse" : "bg-card-muted")} />
+                  <span className="sr-only">{STATUS_LABEL[step]}</span>
                 </li>
               ))}
             </ol>
-            <p className="mt-1.5 text-[13px] text-muted sm:hidden" aria-hidden="true">
-              <span className="font-bold text-ink">{STATUS_LABEL[incident.status]}</span>, step {reached + 1} of{" "}
+            {/* One line instead of five labels, which crowd each other at panel width. */}
+            <p className="mt-2 text-[13px] text-fg-2" aria-hidden="true">
+              <span className="font-bold text-fg">{STATUS_LABEL[incident.status]}</span>, step {reached + 1} of{" "}
               {STEPS.length}
+              {reached + 1 < STEPS.length && <>. Next: {STATUS_LABEL[STEPS[reached + 1]!].toLowerCase()}</>}
             </p>
           </div>
         )}
 
         {actions.length > 0 && (
-          <div className="space-y-2">
-            {actions.map((action) => (
-              <div key={action.label}>
-                <button
-                  type="button"
-                  disabled={busy || Boolean(action.disabledReason)}
-                  onClick={() => run(action)}
-                  aria-describedby={action.disabledReason ? `${action.label}-why` : undefined}
-                  className={`w-full ${
-                    action.emphasis === "primary"
-                      ? "button-primary"
-                      : action.emphasis === "secondary"
-                        ? "button-secondary"
-                        : "button-quiet"
-                  }`}
-                >
-                  {action.label}
-                </button>
-                {action.disabledReason && (
-                  <p id={`${action.label}-why`} className="mt-1 text-[13px] text-muted">
-                    {action.disabledReason}
-                  </p>
-                )}
-              </div>
-            ))}
-            {error && (
-              <p role="alert" className="text-[15px] text-ink">
-                {error}
-              </p>
+          <div className="space-y-3">
+            {actions
+              .filter((action) => action !== dismissAction)
+              .map((action) =>
+                action.to === "dispatched" ? (
+                  <div key={`${action.label}-${attempt}`}>
+                    <SwipeToConfirm
+                      label="Dispatch"
+                      doneLabel="Dispatching"
+                      disabled={Boolean(action.disabledReason)}
+                      onConfirm={() => void run(action)}
+                    />
+                    {action.disabledReason && (
+                      <p className="mt-1 text-[13px] font-bold text-fg">{action.disabledReason}</p>
+                    )}
+                  </div>
+                ) : (
+                  <Button
+                    key={action.label}
+                    fullWidth
+                    size={action.emphasis === "primary" ? "lg" : "md"}
+                    variant={action.emphasis === "primary" ? "primary" : action.emphasis === "secondary" ? "secondary" : "ghost"}
+                    disabled={busy}
+                    onClick={() => void run(action)}
+                  >
+                    {action.label}
+                  </Button>
+                ),
+              )}
+            {dismissAction && (
+              <Button fullWidth variant="ghost" disabled={busy} onClick={() => setConfirmDismiss(true)}>
+                {dismissAction.label}
+              </Button>
             )}
+            {error && <InlineError>{error}</InlineError>}
           </div>
         )}
 
-        <section aria-labelledby="responders-heading">
-          <h3 id="responders-heading" className="text-[15px] font-bold text-ink">
-            Responders
-          </h3>
+        <PanelSection title="Responders">
           {incident.responders.length === 0 ? (
-            <p className="mt-1 text-[15px] text-muted">No one assigned yet</p>
+            <p className="text-[15px] text-fg-2">No one assigned yet</p>
           ) : (
-            <ul className="mt-1 space-y-0.5 text-[15px] text-ink">
+            <ul className="flex flex-wrap gap-2">
               {incident.responders.map((person) => (
-                <li key={person.id}>{person.fullName}</li>
+                <li key={person.id} className="rounded-full bg-inverse px-4 py-1.5 text-[15px] text-on-inverse">
+                  {person.fullName}
+                </li>
               ))}
             </ul>
           )}
-          {canAssign(incident, role) && <AssignResponder incident={incident} onChanged={onChanged} />}
-        </section>
+          {canAssign(incident, role) && (
+            <AssignResponder incident={incident} onChanged={onChanged} onToast={onToast} />
+          )}
+        </PanelSection>
 
         {incident.source === "detection" && (
-          <section>
-            <h3 className="text-[15px] font-bold text-ink">Camera</h3>
-            <p className="mt-1 text-[15px] text-muted">Raised by {incident.cameraName ?? "a camera"}</p>
+          <PanelSection title="Camera">
+            <p className="text-[15px]">Raised by {incident.cameraName ?? "a camera"}</p>
             {incident.snapshotDetectionId && (
               <img
                 key={incident.snapshotDetectionId}
                 src={`/api/detections/${incident.snapshotDetectionId}/snapshot`}
                 alt={`Latest snapshot from ${incident.cameraName ?? "the camera"}`}
                 loading="lazy"
-                className="mt-2 w-full rounded-md border border-line"
+                className="mt-3 w-full rounded-card bg-card-muted"
               />
             )}
-          </section>
+          </PanelSection>
         )}
 
         {incident.description && (
-          <section>
-            <h3 className="text-[15px] font-bold text-ink">Notes</h3>
-            <p className="mt-1 text-[15px] text-ink">{incident.description}</p>
-          </section>
+          <PanelSection title="Notes">
+            <p className="text-[15px]">{incident.description}</p>
+          </PanelSection>
         )}
 
-        <section>
-          <h3 className="text-[15px] font-bold text-ink">Location</h3>
-          <p className="mt-1 text-[15px] tabular-nums text-muted">
+        <PanelSection title="Location">
+          <p className="text-[15px] tabular-nums">
             {incident.latitude.toFixed(5)}, {incident.longitude.toFixed(5)}
           </p>
-        </section>
+        </PanelSection>
 
         {events.length > 0 && (
-          <section>
-            <h3 className="text-[15px] font-bold text-ink">History</h3>
-            <ul className="mt-1 space-y-1">
+          <PanelSection title="History">
+            <ul className="space-y-2">
               {events.map((event) => (
-                <li key={`${event.toStatus}-${event.at}`} className="flex justify-between gap-3 text-[13px]">
-                  <span className="text-ink">{STATUS_LABEL[event.toStatus]}</span>
-                  <time dateTime={event.at} className="tabular-nums text-muted">
+                <li
+                  key={`${event.toStatus}-${event.at}`}
+                  className="flex items-baseline justify-between gap-3 rounded-control bg-card-muted px-4 py-2.5 text-[13px]"
+                >
+                  <span className="font-bold">{STATUS_LABEL[event.toStatus]}</span>
+                  <time dateTime={event.at} className="tabular-nums text-fg-2">
                     {fullTime(event.at)}
                   </time>
                 </li>
               ))}
             </ul>
-          </section>
+          </PanelSection>
         )}
       </div>
+
+      {dismissAction && (
+        <Modal
+          open={confirmDismiss}
+          title="Close as a false alarm?"
+          onClose={() => setConfirmDismiss(false)}
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => setConfirmDismiss(false)}>
+                Keep open
+              </Button>
+              <Button
+                variant="danger"
+                onClick={() => {
+                  setConfirmDismiss(false);
+                  void run(dismissAction);
+                }}
+              >
+                Close as false alarm
+              </Button>
+            </>
+          }
+        >
+          <p className="text-fg-2">
+            {TYPE_LABEL[incident.incidentType]} in {place} leaves the active list. The history keeps a record of who
+            closed it.
+          </p>
+        </Modal>
+      )}
     </article>
   );
 }
 
-function AssignResponder({ incident, onChanged }: { incident: Incident; onChanged: (i: Incident) => void }) {
-  const [roster, setRoster] = useState<Responder[]>([]);
+function AssignResponder({
+  incident,
+  onChanged,
+  onToast,
+}: {
+  incident: Incident;
+  onChanged: (incident: Incident) => void;
+  onToast: (message: string) => void;
+}) {
+  const [roster, setRoster] = useState<Responder[] | null>(null);
   const [choice, setChoice] = useState("");
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -214,45 +265,60 @@ function AssignResponder({ incident, onChanged }: { incident: Incident; onChange
   }, [incident.responders.length]);
 
   const assignedIds = new Set(incident.responders.map((person) => person.id));
-  const available = roster.filter((person) => !assignedIds.has(person.id));
+  const available = (roster ?? []).filter((person) => !assignedIds.has(person.id));
 
   async function assign() {
+    const person = available.find((item) => item.id === choice);
+    setBusy(true);
     setError(null);
     try {
-      await api(`/api/incidents/${incident.id}/assignments`, {
-        method: "POST",
-        body: { responderId: choice },
-      });
+      await api(`/api/incidents/${incident.id}/assignments`, { method: "POST", body: { responderId: choice } });
       const body = await api<{ incident: Incident }>(`/api/incidents/${incident.id}`);
       onChanged(body.incident);
       setChoice("");
+      onToast(`Assigned ${person?.fullName ?? "the responder"}`);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Couldn't assign that responder");
+    } finally {
+      setBusy(false);
     }
   }
 
-  if (available.length === 0 && !error) return null;
+  if (roster && available.length === 0 && !error) return null;
   return (
-    <div className="mt-3 flex flex-wrap items-end gap-2">
-      <label className="min-w-0 flex-1">
-        <span className="block text-[13px] text-muted">Assign a responder</span>
-        <select value={choice} onChange={(event) => setChoice(event.target.value)} className="field mt-1">
-          <option value="">Choose a responder</option>
+    <div className="mt-4">
+      <ChoiceGroup legend="Assign a responder">
+        <div className="grid gap-2">
           {available.map((person) => (
-            <option key={person.id} value={person.id}>
-              {person.fullName}, {person.unit}
-              {person.activeAssignments ? ` (on ${person.activeAssignments} now)` : ""}
-            </option>
+            <ChoiceCard
+              key={person.id}
+              name={`assign-${incident.id}`}
+              value={person.id}
+              checked={person.id === choice}
+              onChange={() => setChoice(person.id)}
+            >
+              <span className="flex items-center justify-between gap-3">
+                <span>
+                  <span className="block font-display text-[15px] font-medium leading-tight">{person.fullName}</span>
+                  <span className={cx("block text-[13px]", person.id === choice ? "text-on-accent" : "text-fg-2")}>
+                    {person.unit}
+                  </span>
+                </span>
+                <span className={cx("shrink-0 text-[13px]", person.id === choice ? "text-on-accent" : "text-fg-2")}>
+                  {person.activeAssignments ? `On ${person.activeAssignments} now` : "Free"}
+                </span>
+              </span>
+            </ChoiceCard>
           ))}
-        </select>
-      </label>
-      <button type="button" disabled={!choice} onClick={assign} className="button-secondary">
+        </div>
+      </ChoiceGroup>
+      <Button className="mt-3" variant="secondary" disabled={!choice || busy} onClick={() => void assign()}>
         Assign
-      </button>
+      </Button>
       {error && (
-        <p role="alert" className="w-full text-[13px] text-ink">
-          {error}
-        </p>
+        <div className="mt-2">
+          <InlineError>{error}</InlineError>
+        </div>
       )}
     </div>
   );

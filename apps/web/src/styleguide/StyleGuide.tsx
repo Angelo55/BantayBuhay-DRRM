@@ -2,16 +2,12 @@ import type { IncidentType, Severity } from "@bantaybuhay/shared";
 import {
   Bell,
   Cctv,
-  Flame,
-  Hand,
   LayoutGrid,
   Map as MapIcon,
   Minus,
-  PersonStanding,
   Plus,
   Settings,
   Users,
-  Waves,
   X,
 } from "lucide-react";
 import { motion } from "motion/react";
@@ -24,6 +20,7 @@ import {
   EmptyState,
   ErrorState,
   Field,
+  INCIDENT_ICON,
   IconButton,
   IconTile,
   Input,
@@ -52,13 +49,6 @@ import {
 const STROKE = 1.75;
 const SEVERITIES: Severity[] = ["low", "medium", "high", "critical"];
 
-export const INCIDENT_ICON: Record<IncidentType, ReactNode> = {
-  fire_smoke: <Flame aria-hidden="true" size={24} strokeWidth={STROKE} />,
-  // A standing figure turned on its side reads as someone on the ground.
-  person_down: <PersonStanding aria-hidden="true" size={24} strokeWidth={STROKE} className="rotate-90" />,
-  flood: <Waves aria-hidden="true" size={24} strokeWidth={STROKE} />,
-  sos_gesture: <Hand aria-hidden="true" size={24} strokeWidth={STROKE} />,
-};
 
 const COLOR_TOKENS = [
   ["canvas", "Page and map background"],
@@ -120,7 +110,7 @@ export function StyleGuide() {
               Design system
             </h1>
             <p className="mt-3 max-w-[60ch] text-[15px] text-fg-2">
-              Every token and component, for review before screens are rebuilt. The rules are in DESIGN.md.
+              Every token and component the screens are built from. The rules are in DESIGN.md.
             </p>
           </div>
           <SegmentedControl

@@ -1,6 +1,8 @@
+import { TriangleAlert } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { api, ApiError } from "../lib/api";
 import type { User } from "../lib/types";
+import { Button, Field, Input, STROKE } from "../ui";
 
 export function LoginPage({ onSignedIn }: { onSignedIn: (user: User) => void }) {
   const [email, setEmail] = useState("");
@@ -32,49 +34,53 @@ export function LoginPage({ onSignedIn }: { onSignedIn: (user: User) => void }) 
   }
 
   return (
-    <main className="grid min-h-dvh place-items-center bg-ground px-4 py-10">
-      <div className="w-full max-w-sm">
-        <h1 className="text-[27px] font-bold leading-tight text-ink">BantayBuhay</h1>
-        <p className="mt-1 text-[15px] text-muted">Kabankalan City incident response</p>
+    <main className="grid min-h-dvh place-items-center bg-canvas px-4 py-10 text-fg">
+      <div className="w-full max-w-md">
+        <div className="rounded-panel bg-card p-8 shadow-float sm:p-10">
+          <p className="font-display text-[15px] font-medium text-fg-2">BantayBuhay</p>
+          <h1 className="mt-2 font-display text-[32px] font-semibold leading-[1.05] tracking-[-0.02em] sm:text-[40px]">
+            Kabankalan City incident response
+          </h1>
 
-        <form onSubmit={submit} className="mt-8 space-y-5" noValidate>
-          <div>
-            <label htmlFor="email" className="block text-[15px] font-bold text-ink">
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              autoComplete="username"
-              required
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              className="field mt-1.5"
-            />
-          </div>
-          <div>
-            <label htmlFor="password" className="block text-[15px] font-bold text-ink">
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              autoComplete="current-password"
-              required
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              className="field mt-1.5"
-            />
-          </div>
-          {error && (
-            <p role="alert" className="rounded-md border border-sev-critical/60 px-3 py-2 text-[15px] text-ink">
-              {error}
-            </p>
-          )}
-          <button type="submit" disabled={busy} className="button-primary w-full">
-            {busy ? "Signing in" : "Sign in"}
-          </button>
-        </form>
+          <form onSubmit={submit} className="mt-8 space-y-5" noValidate>
+            <Field label="Email">
+              {({ id }) => (
+                <Input
+                  id={id}
+                  type="email"
+                  autoComplete="username"
+                  required
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                />
+              )}
+            </Field>
+            <Field label="Password">
+              {({ id }) => (
+                <Input
+                  id={id}
+                  type="password"
+                  autoComplete="current-password"
+                  required
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                />
+              )}
+            </Field>
+            {error && (
+              <p role="alert" className="flex items-start gap-2 text-[15px] font-bold text-severity-critical-text">
+                <TriangleAlert aria-hidden="true" size={20} strokeWidth={STROKE} className="mt-0.5 shrink-0" />
+                {error}
+              </p>
+            )}
+            <Button type="submit" fullWidth size="lg" disabled={busy}>
+              {busy ? "Signing in" : "Sign in"}
+            </Button>
+          </form>
+        </div>
+        <p className="mt-5 px-4 text-center text-[13px] text-fg-2">
+          Can't sign in? Ask your DRRM administrator to check your account.
+        </p>
       </div>
     </main>
   );

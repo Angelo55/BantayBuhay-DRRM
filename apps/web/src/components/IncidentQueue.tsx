@@ -1,7 +1,9 @@
-import { SEVERITY_COLOR, SEVERITY_RANK, STATUS_LABEL, TYPE_LABEL } from "../lib/labels";
+import { ShieldCheck } from "lucide-react";
+import type { ReactNode } from "react";
+import { SEVERITY_RANK, STATUS_LABEL, TYPE_LABEL } from "../lib/labels";
 import { timeAgo } from "../lib/time";
 import type { Incident, PendingDetection } from "../lib/types";
-import { SeverityShape } from "./SeverityBadge";
+import { CountBadge, EmptyState, ListCard, STROKE, Skeleton, incidentIcon } from "../ui";
 
 const bySeverityThenNewest = (a: Incident, b: Incident) =>
   SEVERITY_RANK[b.severity] - SEVERITY_RANK[a.severity] ||
@@ -22,74 +24,84 @@ export function groupIncidents(incidents: Incident[]) {
 
 interface QueueProps {
   incidents: Incident[];
+  loaded: boolean;
   reviews?: PendingDetection[];
   selectedReviewId?: string | null;
   onSelectReview?: (id: string) => void;
   selectedId: string | null;
   onSelect: (id: string) => void;
   now: number;
+  emptyTitle: string;
   emptyMessage: string;
 }
 
 export function IncidentQueue({
   incidents,
+  loaded,
   reviews = [],
   selectedReviewId = null,
   onSelectReview,
   selectedId,
   onSelect,
   now,
+  emptyTitle,
   emptyMessage,
 }: QueueProps) {
-  const groups = groupIncidents(incidents);
-  if (incidents.length === 0 && reviews.length === 0) {
-    return <p className="px-4 py-6 text-[15px] text-muted">{emptyMessage}</p>;
+  if (!loaded) {
+    return (
+      <div className="space-y-3" aria-label="Loading incidents" role="status">
+        {[0, 1, 2].map((key) => (
+          <Skeleton key={key} className="h-20 rounded-card" />
+        ))}
+      </div>
+    );
   }
+  if (incidents.length === 0 && reviews.length === 0) {
+    return (
+      <EmptyState icon={<ShieldCheck aria-hidden="true" size={24} strokeWidth={STROKE} />} title={emptyTitle}>
+        {emptyMessage}
+      </EmptyState>
+    );
+  }
+  const groups = groupIncidents(incidents);
   return (
-    <div className="space-y-5 py-3">
+    <div className="space-y-6">
       {reviews.length > 0 && onSelectReview && (
-        <section aria-label="Needs review">
-          <h2 className="px-4 pb-1.5 text-[13px] font-bold text-muted">
-            Needs review <span className="tabular-nums">({reviews.length})</span>
-          </h2>
-          <ul>
-            {reviews.map((detection) => (
-              <li key={detection.id}>
-                <button
-                  type="button"
-                  onClick={() => onSelectReview(detection.id)}
-                  aria-current={detection.id === selectedReviewId ? "true" : undefined}
-                  className={`flex w-full items-start gap-3 border-l-4 border-dashed border-l-muted px-4 py-2.5 text-left hover:bg-raised ${
-                    detection.id === selectedReviewId ? "bg-raised" : ""
-                  }`}
-                >
-                  <span className="min-w-0 flex-1">
-                    <span className="flex items-baseline justify-between gap-2">
-                      <span className="truncate text-[15px] font-bold text-ink">
-                        Possible {TYPE_LABEL[detection.incidentType].toLowerCase()}
-                      </span>
-                      <span className="shrink-0 text-[13px] tabular-nums text-muted">
-                        {timeAgo(detection.capturedAt, now)}
-                      </span>
-                    </span>
-                    <span className="block truncate text-[13px] text-muted">
-                      {detection.cameraName}, {Math.round(detection.confidence * 100)}% sure
-                    </span>
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </section>
+        <Group title="Needs review" count={reviews.length}>
+          {reviews.map((detection) => (
+            <li key={detection.id}>
+              <ListCard
+                title={`Possible ${TYPE_LABEL[detection.incidentType].toLowerCase()}`}
+                meta={`${detection.cameraName}, ${Math.round(detection.confidence * 100)}% sure`}
+                note={`Check the snapshot, ${timeAgo(detection.capturedAt, now)}`}
+                tile={incidentIcon(detection.incidentType)}
+                selected={detection.id === selectedReviewId}
+                onClick={() => onSelectReview(detection.id)}
+              />
+            </li>
+          ))}
+        </Group>
       )}
-      <Group title="Needs attention" items={groups.attention} {...{ selectedId, onSelect, now }} />
-      <Group title="In progress" items={groups.active} {...{ selectedId, onSelect, now }} />
-      <Group title="Recently closed" items={groups.closed} {...{ selectedId, onSelect, now }} />
+      <IncidentGroup title="Needs attention" items={groups.attention} {...{ selectedId, onSelect, now }} />
+      <IncidentGroup title="In progress" items={groups.active} {...{ selectedId, onSelect, now }} />
+      <IncidentGroup title="Recently closed" items={groups.closed} {...{ selectedId, onSelect, now }} />
     </div>
   );
 }
 
-function Group({
+function Group({ title, count, children }: { title: string; count: number; children: ReactNode }) {
+  return (
+    <section aria-label={title}>
+      <h2 className="mb-3 flex items-center gap-2 px-1 font-display text-[15px] font-medium text-fg-2">
+        {title}
+        <CountBadge count={count} label={title.toLowerCase()} />
+      </h2>
+      <ul className="space-y-2">{children}</ul>
+    </section>
+  );
+}
+
+function IncidentGroup({
   title,
   items,
   selectedId,
@@ -104,47 +116,23 @@ function Group({
 }) {
   if (items.length === 0) return null;
   return (
-    <section aria-label={title}>
-      <h2 className="px-4 pb-1.5 text-[13px] font-bold text-muted">
-        {title} <span className="tabular-nums">({items.length})</span>
-      </h2>
-      <ul>
-        {items.map((incident) => (
+    <Group title={title} count={items.length}>
+      {items.map((incident) => {
+        const unacknowledged = !incident.acknowledgedAt && incident.status === "detected";
+        return (
           <li key={incident.id}>
-            <button
-              type="button"
+            <ListCard
+              title={TYPE_LABEL[incident.incidentType]}
+              meta={`${incident.barangayName ?? "Outside mapped barangays"}, ${timeAgo(incident.detectedAt, now)}`}
+              note={unacknowledged ? "Not acknowledged" : STATUS_LABEL[incident.status]}
+              tile={incidentIcon(incident.incidentType)}
+              severity={incident.severity}
+              selected={incident.id === selectedId}
               onClick={() => onSelect(incident.id)}
-              aria-current={incident.id === selectedId ? "true" : undefined}
-              className={`flex w-full items-start gap-3 border-l-4 px-4 py-2.5 text-left hover:bg-raised ${
-                incident.id === selectedId ? "bg-raised" : ""
-              }`}
-              style={{ borderLeftColor: SEVERITY_COLOR[incident.severity] }}
-            >
-              <span className="mt-1" style={{ color: SEVERITY_COLOR[incident.severity] }}>
-                <SeverityShape severity={incident.severity} />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="flex items-baseline justify-between gap-2">
-                  <span className="truncate text-[15px] font-bold text-ink">
-                    {TYPE_LABEL[incident.incidentType]}
-                  </span>
-                  <span className="shrink-0 text-[13px] tabular-nums text-muted">
-                    {timeAgo(incident.detectedAt, now)}
-                  </span>
-                </span>
-                <span className="block truncate text-[13px] text-muted">
-                  {incident.barangayName ?? "Outside mapped barangays"}, {STATUS_LABEL[incident.status].toLowerCase()}
-                </span>
-                {!incident.acknowledgedAt && incident.status === "detected" && (
-                  <span className="mt-1 inline-block rounded border border-ink/40 px-1.5 text-[13px] font-bold text-ink">
-                    Not acknowledged
-                  </span>
-                )}
-              </span>
-            </button>
+            />
           </li>
-        ))}
-      </ul>
-    </section>
+        );
+      })}
+    </Group>
   );
 }

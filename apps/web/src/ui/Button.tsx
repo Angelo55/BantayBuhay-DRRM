@@ -1,7 +1,7 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { cx } from "./cx";
 
-type Variant = "primary" | "accent" | "secondary" | "ghost" | "danger";
+type Variant = "primary" | "accent" | "secondary" | "ghost" | "danger" | "inherit";
 type Size = "md" | "lg";
 
 const VARIANTS: Record<Variant, string> = {
@@ -10,6 +10,8 @@ const VARIANTS: Record<Variant, string> = {
   secondary: "bg-card text-fg shadow-soft hover:shadow-lift",
   ghost: "text-fg-2 hover:bg-card-muted hover:text-fg",
   danger: "bg-critical-banner text-on-critical-banner hover:shadow-lift",
+  // For buttons on a colored surface such as the critical banner: takes that surface's text color.
+  inherit: "text-current underline underline-offset-4 hover:decoration-2",
 };
 
 const SIZES: Record<Size, string> = {

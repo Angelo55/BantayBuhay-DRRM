@@ -1,17 +1,21 @@
+import { ImageOff } from "lucide-react";
 import { useState } from "react";
 import { api } from "../lib/api";
 import { TYPE_LABEL } from "../lib/labels";
 import { fullTime, timeAgo } from "../lib/time";
 import type { Incident, PendingDetection } from "../lib/types";
+import { Button, EmptyState, STROKE, Stat, StatusPill } from "../ui";
+import { InlineError, PanelHeader } from "./PanelHeader";
 
 interface ReviewProps {
   detection: PendingDetection;
   now: number;
   onDone: (detectionId: string, incident: Incident | null) => void;
   onClose: () => void;
+  onToast: (message: string) => void;
 }
 
-export function ReviewDetail({ detection, now, onDone, onClose }: ReviewProps) {
+export function ReviewDetail({ detection, now, onDone, onClose, onToast }: ReviewProps) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -23,6 +27,7 @@ export function ReviewDetail({ detection, now, onDone, onClose }: ReviewProps) {
         method: "POST",
         body: { decision },
       });
+      onToast(decision === "confirm" ? "Incident raised" : "Detection rejected");
       onDone(detection.id, body.incident);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "That didn't work. Try again.");
@@ -32,48 +37,42 @@ export function ReviewDetail({ detection, now, onDone, onClose }: ReviewProps) {
 
   return (
     <article aria-labelledby="review-title" className="flex h-full flex-col">
-      <header className="flex items-start justify-between gap-3 border-b border-line px-5 py-4">
-        <div>
-          <p className="text-[13px] text-muted">The camera wasn't sure. Check the snapshot.</p>
-          <h2 id="review-title" className="mt-1 text-[21px] font-bold leading-tight text-ink">
-            Possible {TYPE_LABEL[detection.incidentType].toLowerCase()}
-          </h2>
-          <p className="mt-0.5 text-[15px] text-muted">
+      <PanelHeader
+        titleId="review-title"
+        title={`Possible ${TYPE_LABEL[detection.incidentType].toLowerCase()}`}
+        above={<StatusPill tone="info">The camera wasn't sure</StatusPill>}
+        meta={
+          <>
             {detection.cameraName}, {detection.barangayName ?? "unmapped area"},{" "}
             <time dateTime={detection.capturedAt} title={fullTime(detection.capturedAt)}>
               {timeAgo(detection.capturedAt, now)}
             </time>
-          </p>
-        </div>
-        <button type="button" onClick={onClose} className="button-quiet">
-          Close
-        </button>
-      </header>
-      <div className="flex-1 space-y-5 overflow-y-auto px-5 py-5">
+          </>
+        }
+        closeLabel="Close review"
+        onClose={onClose}
+      />
+      <div className="flex-1 space-y-6 overflow-y-auto px-6 pt-5 pb-8">
         {detection.hasSnapshot ? (
           <img
             src={`/api/detections/${detection.id}/snapshot`}
             alt={`Snapshot from ${detection.cameraName} when this was detected`}
-            className="w-full rounded-md border border-line"
+            className="w-full rounded-card bg-card-muted"
           />
         ) : (
-          <p className="text-[15px] text-muted">This detection came without a snapshot.</p>
+          <EmptyState icon={<ImageOff aria-hidden="true" size={24} strokeWidth={STROKE} />} title="No snapshot">
+            This detection came without a picture. Check the live feed or call someone nearby before confirming.
+          </EmptyState>
         )}
-        <p className="text-[15px] text-muted">
-          Model confidence <span className="font-bold tabular-nums text-ink">{Math.round(detection.confidence * 100)}%</span>
-        </p>
-        <div className="space-y-2">
-          <button type="button" disabled={busy} onClick={() => review("confirm")} className="button-primary w-full">
+        <Stat value={`${Math.round(detection.confidence * 100)}%`} label="model confidence" />
+        <div className="space-y-3">
+          <Button fullWidth size="lg" disabled={busy} onClick={() => void review("confirm")}>
             Confirm and raise incident
-          </button>
-          <button type="button" disabled={busy} onClick={() => review("reject")} className="button-secondary w-full">
+          </Button>
+          <Button fullWidth variant="secondary" disabled={busy} onClick={() => void review("reject")}>
             Reject, nothing's happening
-          </button>
-          {error && (
-            <p role="alert" className="text-[15px] text-ink">
-              {error}
-            </p>
-          )}
+          </Button>
+          {error && <InlineError>{error}</InlineError>}
         </div>
       </div>
     </article>

@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { Field, Input, Rail, SegmentedControl, SwipeToConfirm } from "./index";
+import { ChoiceCard, ChoiceGroup, Field, Input, Rail, SegmentedControl, SwipeToConfirm } from "./index";
 
 afterEach(cleanup);
 
@@ -93,5 +93,30 @@ describe("Rail", () => {
     );
     expect(screen.getByRole("button", { name: "Map" }).getAttribute("aria-current")).toBe("page");
     expect(screen.getByRole("button", { name: "Incidents" }).getAttribute("aria-current")).toBeNull();
+  });
+});
+
+describe("ChoiceCard", () => {
+  it("is a real radio named by its card text", () => {
+    function Picker() {
+      const [value, setValue] = useState("low");
+      return (
+        <ChoiceGroup legend="Severity">
+          {["low", "high"].map((level) => (
+            <ChoiceCard key={level} name="severity" value={level} checked={value === level} onChange={() => setValue(level)}>
+              {level === "low" ? "Low" : "High"}
+            </ChoiceCard>
+          ))}
+        </ChoiceGroup>
+      );
+    }
+    render(<Picker />);
+
+    const high = screen.getByRole("radio", { name: "High" }) as HTMLInputElement;
+    fireEvent.click(high);
+
+    expect(high.checked).toBe(true);
+    expect((screen.getByRole("radio", { name: "Low" }) as HTMLInputElement).checked).toBe(false);
+    expect(screen.getByRole("group", { name: "Severity" })).toBeTruthy();
   });
 });
