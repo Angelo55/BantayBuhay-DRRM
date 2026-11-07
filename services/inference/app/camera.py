@@ -4,6 +4,7 @@ import logging
 import threading
 import time
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Protocol
 
 import cv2
@@ -14,6 +15,30 @@ from app.persistence import Cooldown, Persistence
 
 log = logging.getLogger(__name__)
 SNAPSHOT_MAX_WIDTH = 960
+# A camera with no footage streams a generated test pattern instead, so it still shows online.
+SYNTHETIC = "synthetic"
+NETWORK_SCHEMES = ("rtsp://", "rtsps://", "http://", "https://")
+
+
+def source_url(stream_path: str, video_dir: str, rtsp_base: str | None = None) -> str:
+    """Where a camera's frames come from: a stream server when one is set (real cameras), else
+    the clip named after the camera, else the test pattern."""
+    if rtsp_base:
+        return f"{rtsp_base.rstrip('/')}/{stream_path}"
+    clip = Path(video_dir) / f"{stream_path.rsplit('/', 1)[-1]}.mp4"
+    return str(clip) if clip.is_file() else SYNTHETIC
+
+
+def pattern_frame(seconds: float, width: int = 640, height: int = 360) -> np.ndarray:
+    """Colour bars with a band that moves over time, like the old simulator's test source."""
+    colours = [(192, 192, 192), (0, 192, 192), (192, 192, 0), (0, 192, 0), (192, 0, 192), (0, 0, 192), (192, 0, 0)]
+    frame = np.zeros((height, width, 3), dtype=np.uint8)
+    bar = width // len(colours) + 1
+    for index, colour in enumerate(colours):
+        frame[:, index * bar : (index + 1) * bar] = colour
+    band = int((seconds * 60) % height)
+    frame[band : band + 12, :] = 255
+    return frame
 
 
 class DetectionSink(Protocol):
@@ -83,7 +108,17 @@ class CameraWorker:
                 log.exception("camera %s: couldn't post a detection", self.camera_id)
 
     def read_stream(self) -> None:
-        """Reads every frame as it arrives and keeps only the newest one."""
+        """Reads frames and keeps only the newest one. Streams are read as fast as they arrive;
+        clip files are read at their own speed and loop; the test pattern is generated."""
+        if self.url == SYNTHETIC:
+            self.stats["connected"] = True
+            while not self.stopping.is_set():
+                with self.lock:
+                    self.latest = pattern_frame(time.monotonic())
+                self.stopping.wait(1.0 / self.fps)
+            return
+
+        is_file = not self.url.startswith(NETWORK_SCHEMES)
         while not self.stopping.is_set():
             capture = cv2.VideoCapture(self.url, cv2.CAP_FFMPEG)
             if not capture.isOpened():
@@ -91,17 +126,27 @@ class CameraWorker:
                 self.stopping.wait(5)
                 continue
             self.stats["connected"] = True
+            # A file would otherwise be read as fast as it decodes: skip to the analysis rate and
+            # wait in real time, so a clip plays like a live camera without decoding every frame.
+            source_fps = capture.get(cv2.CAP_PROP_FPS) or 25.0
+            step = max(1, round(source_fps / self.fps)) if is_file else 1
             while not self.stopping.is_set():
+                for _ in range(step - 1):
+                    capture.grab()
                 ok, frame = capture.read()
                 if not ok:
                     break
                 with self.lock:
                     self.latest = frame
+                if is_file:
+                    self.stopping.wait(step / source_fps)
             capture.release()
-            self.stats["connected"] = False
-            with self.lock:
-                self.latest = None
-            self.stopping.wait(2)
+            # The end of a clip starts it again straight away; a dropped stream waits a moment.
+            if not is_file:
+                self.stats["connected"] = False
+                with self.lock:
+                    self.latest = None
+            self.stopping.wait(0 if is_file else 2)
 
     def run(self) -> None:
         """Analyzes the newest frame at the target rate. Reading happens on its own thread, so

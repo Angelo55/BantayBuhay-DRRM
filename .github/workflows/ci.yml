@@ -34,6 +34,19 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      # The built API, started as on a server, must connect to its database and report ready.
+      - name: Smoke-test the built API
+        env:
+          DATABASE_URL: postgres://bantaybuhay:test-only@127.0.0.1:55432/bantaybuhay_test
+          HOST: 127.0.0.1
+        run: |
+          node apps/api/dist/server.js > api.log 2>&1 &
+          for _ in $(seq 1 30); do
+            curl -sf http://127.0.0.1:3000/api/readyz > /dev/null && break
+            sleep 1
+          done
+          curl -sf http://127.0.0.1:3000/api/readyz | grep '"status":"ready"' || { cat api.log; exit 1; }
+          curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/api/incidents | grep 401
 
   python:
     runs-on: ubuntu-latest
@@ -49,9 +62,3 @@ jobs:
       - run: ruff check .
       - run: pytest
 
-  stack:
-    needs: [node, python]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - run: bash infra/smoke.sh

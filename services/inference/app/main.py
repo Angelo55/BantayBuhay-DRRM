@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from app.camera import CameraWorker
+from app.camera import CameraWorker, source_url
 from app.client import ApiClient
 from app.detectors import PersonDownDetector
 
@@ -21,13 +21,22 @@ def start_workers() -> None:
     if not token:
         log.warning("DETECTOR_TOKEN isn't set, so detection is off")
         return
-    api = ApiClient(os.environ.get("API_URL", "http://api:3000"), token)
-    rtsp_base = os.environ.get("RTSP_BASE", "rtsp://mediamtx:8554")
-    detector = PersonDownDetector(os.environ.get("MODEL_PATH", "/models/dfine_n_coco.onnx"))
-    for camera in api.cameras():
+    api = ApiClient(os.environ.get("API_URL", "http://127.0.0.1:3000"), token)
+    # Real cameras come through a stream server (RTSP_BASE); simulated ones from clip files.
+    rtsp_base = os.environ.get("RTSP_BASE") or None
+    video_dir = os.environ.get("VIDEO_DIR", "../../media/sim")
+    detector = PersonDownDetector(os.environ.get("MODEL_PATH", "models/dfine_n_coco.onnx"))
+    cameras = api.cameras()
+    # Detection is CPU-heavy, so a laptop can watch fewer cameras than the server.
+    limit = int(os.environ.get("CAMERA_LIMIT", "0"))
+    if limit > 0:
+        cameras = cameras[:limit]
+    for camera in cameras:
+        url = source_url(camera["streamPath"], video_dir, rtsp_base)
+        log.info("camera %s reads %s", camera["name"], "a test pattern" if url == "synthetic" else url)
         worker = CameraWorker(
             camera_id=camera["id"],
-            url=f"{rtsp_base}/{camera['streamPath']}",
+            url=url,
             detectors=[detector],
             api=api,
             fps=float(os.environ.get("FRAMES_PER_SECOND", "2")),

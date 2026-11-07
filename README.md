@@ -6,57 +6,81 @@ AI-assisted Disaster Risk Reduction and Management (DRRM) incident detection and
 
 ## Run it locally
 
-You need Docker Desktop and Git Bash. This builds and starts the stack, creates a `.env` with random passwords if there isn't one, and checks that everything works:
+Everything runs natively from one terminal, with no Docker. The database is BantayBuhay's Supabase project in Singapore. You need Node.js 24.7 or newer, Python 3.12 and Git. Open the `app` folder in VS Code and use its terminal (Terminal > New Terminal), or pick the same commands from Terminal > Run Task.
 
-```bash
-bash infra/smoke.sh
-```
-
-Then open <http://127.0.0.1:8080>.
-
-**Camera footage:** each simulated camera plays `media/sim/<name>.mp4` on a loop, and shows a test pattern if that file is missing. The names are `barangay-1`, `binicuil`, `tagukon`, `hilamonan`, `tampalon` and `camansi`. The `media/` folder is git-ignored, so footage never enters the repository. After adding a clip, run `docker compose restart mediamtx`.
-
-To stop the stack:
-
-```bash
-docker compose down
-```
-
-## Develop
+**First time on a machine:**
 
 ```bash
 npm install
 ```
 
-API tests need a throwaway database, so start it first:
+```bash
+npm run setup
+```
+
+Setup builds the shared package, creates `apps/api/.env` from [the template](apps/api/.env.example), creates the detection service's Python environment, downloads and checks the detection model, and downloads the test database. Then fill in `apps/api/.env` (the template says where each value comes from) and check it:
 
 ```bash
-npm run test:db
+npm run db:check -w apps/api
+```
+
+**Start the app** (API and web), then open <http://127.0.0.1:5173>:
+
+```bash
+npm run dev
+```
+
+**With the camera detector too:**
+
+```bash
+npm run dev:all
+```
+
+On a laptop the detector watches one camera at one frame per second; change that in `services/inference/.env` (see [its template](services/inference/.env.example)). Each simulated camera plays `media/sim/<name>.mp4` on a loop, or a moving test pattern if that clip is missing. The names are `barangay-1`, `binicuil`, `tagukon`, `hilamonan`, `tampalon` and `camansi`. `media/` is git-ignored, so footage never enters the repository.
+
+**One service at a time**, for debugging: `npm run dev:api`, `npm run dev:web` or `npm run dev:inference`.
+
+**Stop:** press Ctrl+C in the terminal running the app. If a closed terminal left a server running, this stops it:
+
+```bash
+npm run stop
+```
+
+| Service | Address |
+| --- | --- |
+| Web app | <http://127.0.0.1:5173> |
+| API | <http://127.0.0.1:3000> (the web app reaches it through `/api`) |
+| Detector | <http://127.0.0.1:8000/status> |
+
+## Develop
+
+Run every test, with a throwaway local database that starts and stops by itself:
+
+```bash
+npm run test:local
 ```
 
 ```bash
-npm run lint && npm run typecheck && npm test && npm run build
+npm run lint && npm run typecheck && npm run build
 ```
 
-To create the 20 fictional test accounts, with passwords saved to the git-ignored `seed-credentials.local.json`:
+For the detection service, in `services/inference`:
 
 ```bash
-bash infra/seed.sh
+.venv/Scripts/python -m pytest
 ```
 
-For the inference service, in `services/inference`:
-
-```bash
-python -m venv .venv && .venv/Scripts/python -m pip install -r requirements-dev.txt && .venv/Scripts/python -m pytest
-```
+Database changes are SQL files in [`supabase/migrations`](supabase/migrations). The API tests apply them to the local test database; Supabase gets them through the Supabase CLI or dashboard. Row level security limits every signed-in request; see the comments in the migrations.
 
 | Path | Purpose |
 | --- | --- |
 | `apps/web` | React web app |
 | `apps/api` | Fastify API |
-| `services/inference` | Detection service: reads camera streams and reports what persists |
+| `services/inference` | Detection service: reads camera clips or streams and reports what persists |
 | `packages/shared` | Types shared by the web app and API |
-| `infra` | Nginx, MediaMTX camera simulation, smoke test and seed script |
+| `supabase/migrations` | Database schema, row level security and storage bucket |
+| `scripts` | Setup, dev, stop and test database helpers |
+| `infra` | Nginx configuration for the server |
 | `legacy` | Upstream prototype, not built or run |
 
 ## Credits

@@ -4,6 +4,36 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "Start app (API + web)",
+      "detail": "Opens on http://127.0.0.1:5173. Stop with Ctrl+C in its terminal",
+      "type": "npm",
+      "script": "dev",
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Start app with the detector",
+      "detail": "API, web and the camera detector (1 camera at 1 fps on a laptop)",
+      "type": "npm",
+      "script": "dev:all",
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Stop app",
+      "detail": "Stops any BantayBuhay server still running on ports 3000, 5173 or 8000",
+      "type": "npm",
+      "script": "stop",
+      "problemMatcher": []
+    },
+    {
+      "label": "Setup (fresh clone)",
+      "detail": "Run npm install first. Prepares Python, the model and the test database",
+      "type": "npm",
+      "script": "setup",
+      "problemMatcher": []
+    },
+    {
       "label": "Test everything (local database)",
       "detail": "Starts the test database, runs every test, then stops it",
       "type": "npm",

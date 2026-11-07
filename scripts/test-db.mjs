@@ -127,7 +127,11 @@ if (process.platform !== "win32") {
 }
 try {
   if (command === "start") await start();
-  else if (command === "run") {
+  else if (command === "install") {
+    // Download, verify and unpack only, for npm run setup.
+    await ensureInstalled();
+    console.log("Test database binaries are ready in .local/pgsql.");
+  } else if (command === "run") {
     // Start, run every workspace's tests, and always stop afterwards, even when tests fail.
     await start({ announceStop: false });
     let status = 1;
