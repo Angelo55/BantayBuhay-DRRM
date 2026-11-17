@@ -11,6 +11,7 @@ on:
           - status
           - api-logs
           - restart-api
+          - rollback-web
           - issue-certificate
           - start-detector
           - stop-detector
@@ -55,6 +56,11 @@ jobs:
               bash infra/server/remote-run.sh web "journalctl -u bantaybuhay-api -n 200 --no-pager" ;;
             restart-api)
               bash infra/server/remote-run.sh web "systemctl restart bantaybuhay-api && sleep 3 && curl -s http://127.0.0.1:3000/api/readyz" ;;
+            rollback-web)
+              # Re-activates the newest release other than the current one, with the same health
+              # check as a deploy. Running it again switches back. The fix still belongs in main:
+              # the next deploy replaces this release.
+              bash infra/server/remote-run.sh web 'cur="$(readlink -f /opt/bantaybuhay/current)"; prev="$(ls -1dt /opt/bantaybuhay/releases/*/ | sed "s:/\$::" | grep -vx "$cur" | head -n 1)"; [ -n "$prev" ] || { echo "No earlier release on this server."; exit 1; }; echo "Switching from $(basename "$cur") to $(basename "$prev")"; bash "$prev/infra/server/activate.sh" "$prev" web' ;;
             issue-certificate)
               bash infra/server/remote-run.sh web "bash /opt/bantaybuhay/current/infra/server/issue-certificate.sh" ;;
             start-detector)
