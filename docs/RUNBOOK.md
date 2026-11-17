@@ -139,7 +139,7 @@ While the servers were being set up, the `bantaybuhay-dev` IAM user had the mana
 | Symptom | First check |
 | --- | --- |
 | The site doesn't load | **Server operations** > `status`. If nginx isn't active, `restart-api` won't help; redeploy with **Deploy** > Run workflow |
-| The page loads but sign-in fails, or the console is empty | `status`: if `readyz` isn't `ready`, the API can't reach Supabase. Check the Supabase dashboard; a free project pauses after a week without activity and needs restoring there |
+| The page loads but sign-in fails, or the console is empty | `status`: if `readyz` isn't `ready`, the API can't reach Supabase. Check the Supabase dashboard: a free project pauses after about a week without activity (it did on Nov 17) and needs restoring there. The **Uptime check** workflow queries the database every three hours to prevent that, and opens a "Live site is down" issue when the check fails |
 | A deploy failed | Open the failed run: the step's log shows the server's output. The previous release is still running |
 | No detections | Is the detector server running (`detector-logs`)? It needs the web server's private address, set when it was created |
 | The certificate is near expiry | Certbot renews it automatically. Run `issue-certificate` to force a new one |
