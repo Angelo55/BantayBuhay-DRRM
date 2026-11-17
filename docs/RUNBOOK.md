@@ -18,27 +18,22 @@ Nobody logs in to the servers with SSH: port 22 is closed, and every command goe
 
 ## Deploy
 
-Pushing to `main` deploys automatically: **CI** runs, and when it passes, **Deploy** builds a release, uploads it to S3 and tells each running server to switch to it. GitHub signs in to AWS as the `bantaybuhay-github-deploy` role, so no AWS keys are stored in GitHub.
+Changes reach `main` through pull requests ([CONTRIBUTING.md](../CONTRIBUTING.md) has the rules). Every merge deploys automatically: **CI** runs on `main`, and when it passes, **Deploy** builds a release, uploads it to S3 and tells each running server to switch to it. GitHub signs in to AWS as the `bantaybuhay-github-deploy` role, so no AWS keys are stored in GitHub.
 
 On each server, `infra/server/activate.sh` unpacks the release, writes the service's settings from Parameter Store, restarts the service and checks its health. If the health check fails, it **puts the previous release back** and the deploy fails in GitHub, so the site keeps running the old version.
 
 To deploy again without a new commit (for example after changing a secret): GitHub > Actions > **Deploy** > Run workflow, on `main`.
 
-The last step of every deploy checks `https://54-169-12-87.sslip.io/api/readyz`.
+The last step of every deploy checks `https://54-169-12-87.sslip.io/api/readyz`. A failed deploy opens a GitHub issue titled **Production deploy failed**, assigned to everyone with push access, so it reaches the whole team by email. The next successful deploy closes it.
+
+Only `main` can deploy. The `production` environment accepts no other branch, and GitHub's AWS sign-in only works inside that environment, so code on a branch or in a fork can't reach AWS.
 
 ## Roll back
 
-Automatic rollback covers a release that doesn't start. For a release that starts but behaves wrongly, revert the commit and push:
+Automatic rollback covers a release that doesn't start. For a release that starts but behaves wrongly:
 
-```bash
-git revert <commit>
-```
-
-```bash
-git push origin main
-```
-
-CI and Deploy then ship the reverted code. Each server keeps its five newest releases in `/opt/bantaybuhay/releases`.
+1. **Server operations** > `rollback-web` puts the previous release back on the web server in about a minute, with the same health check as a deploy. Running it again switches forward again.
+2. Then revert the commit in a pull request (`git revert <commit>` on a new branch), so the next deploy doesn't bring the problem back. Each server keeps its five newest releases in `/opt/bantaybuhay/releases`.
 
 A database migration isn't undone by a code rollback. Write a new migration that reverses it.
 
@@ -51,6 +46,7 @@ GitHub > Actions > **Server operations** > Run workflow, then pick an action:
 | `status` | Service state, the active release, the API's readiness, disk and memory |
 | `api-logs` | Last 200 lines of the API log |
 | `restart-api` | Restarts the API and checks readiness |
+| `rollback-web` | Puts the previous release back on the web server, health-checked |
 | `issue-certificate` | Gets the HTTPS certificate and switches nginx to HTTPS. Done once; renewal is automatic |
 | `start-detector` | Starts the detector server (about US$0.21 an hour while running) |
 | `stop-detector` | Stops it. A stopped server costs only its disk |

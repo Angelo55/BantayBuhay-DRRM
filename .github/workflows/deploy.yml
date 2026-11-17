@@ -25,7 +25,16 @@ env:
 
 jobs:
   deploy:
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    # Only a push to main in this repository that passed CI. The repository is public, so a pull
+    # request from a fork whose branch is also called "main" would otherwise match the filter
+    # above and deploy the fork's code. A manual run must be started on main too; the production
+    # environment refuses any other branch as well.
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
     runs-on: ubuntu-latest
     environment: production
     steps:
@@ -76,3 +85,51 @@ jobs:
           curl -sf -o /dev/null --max-time 10 "https://$host/" || scheme=http
           curl -sf --max-time 10 "$scheme://$host/api/readyz" | grep '"status":"ready"'
           echo "Live at $scheme://$host"
+
+  # A failed deploy opens (or adds to) an issue assigned to the team, so GitHub emails everyone,
+  # not only the person whose merge triggered it. The next successful deploy closes it.
+  report:
+    needs: deploy
+    if: always() && needs.deploy.result != 'skipped' && needs.deploy.result != 'cancelled'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - uses: actions/github-script@v8
+        env:
+          RESULT: ${{ needs.deploy.result }}
+          SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const title = "Production deploy failed";
+            const run = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+            const commit = process.env.SHA.slice(0, 7);
+            const open = (await github.rest.issues.listForRepo({ owner, repo, state: "open", labels: "deploy-failure" })).data;
+            if (process.env.RESULT === "success") {
+              for (const issue of open) {
+                await github.rest.issues.createComment({ owner, repo, issue_number: issue.number, body: `Fixed: commit ${commit} deployed. ${run}` });
+                await github.rest.issues.update({ owner, repo, issue_number: issue.number, state: "closed", state_reason: "completed" });
+              }
+              return;
+            }
+            const body = [
+              `The deploy of commit ${commit} failed: ${run}`,
+              "",
+              "Each server that failed its health check went back to its previous release, so the live site should still be up. Open the run, find the failed step, and read the server output printed there.",
+              "",
+              "To return the web server to the release before this one: Actions > Server operations > rollback-web.",
+            ].join("\n");
+            if (open.length) {
+              await github.rest.issues.createComment({ owner, repo, issue_number: open[0].number, body });
+            } else {
+              // Everyone who can push; the owner alone if the token may not list collaborators.
+              let assignees = [owner];
+              try {
+                const collaborators = await github.rest.repos.listCollaborators({ owner, repo, permission: "push" });
+                assignees = collaborators.data.map((user) => user.login).slice(0, 10);
+              } catch (error) {
+                core.warning(`Couldn't list collaborators, assigning ${owner}: ${error.message}`);
+              }
+              await github.rest.issues.create({ owner, repo, title, body, labels: ["deploy-failure"], assignees });
+            }
