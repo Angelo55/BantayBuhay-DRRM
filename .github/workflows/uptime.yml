@@ -1,0 +1,64 @@
+name: Uptime check
+
+# Every three hours: asks the live API whether it can reach its database. This does two jobs.
+# It notices when the site is down, opening an issue assigned to the team (closed again once the
+# site recovers). And the database query counts as activity, so Supabase's free plan, which pauses
+# projects after about a week without any, keeps the project running between demos.
+#
+# GitHub turns off scheduled workflows in a public repository after 60 days without commits;
+# re-enable it under Actions > Uptime check if that happens.
+on:
+  schedule:
+    - cron: "23 */3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    name: Live site
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ask the API whether it's ready
+        id: probe
+        run: |
+          for attempt in 1 2 3; do
+            if curl -sf --max-time 20 https://54-169-12-87.sslip.io/api/readyz | grep -q '"status":"ready"'; then
+              echo "up=true" >> "$GITHUB_OUTPUT"; echo "Ready."; exit 0
+            fi
+            sleep 30
+          done
+          echo "up=false" >> "$GITHUB_OUTPUT"
+          echo "::error::The live API didn't report ready in three tries."
+      - uses: actions/github-script@v8
+        env:
+          UP: ${{ steps.probe.outputs.up }}
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const run = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+            const open = (await github.rest.issues.listForRepo({ owner, repo, state: "open", labels: "site-down" })).data;
+            if (process.env.UP === "true") {
+              for (const issue of open) {
+                await github.rest.issues.createComment({ owner, repo, issue_number: issue.number, body: `Back up: ${run}` });
+                await github.rest.issues.update({ owner, repo, issue_number: issue.number, state: "closed", state_reason: "completed" });
+              }
+              return;
+            }
+            if (open.length) return; // Already reported; don't email everyone every three hours.
+            const body = [
+              `https://54-169-12-87.sslip.io/api/readyz didn't answer "ready": ${run}`,
+              "",
+              "First checks: is the Supabase project paused (Supabase dashboard; restore it there)? Then Actions > Server operations > status.",
+              "See docs/RUNBOOK.md, \"When something's wrong\".",
+            ].join("\n");
+            let assignees = [owner];
+            try {
+              assignees = (await github.rest.repos.listCollaborators({ owner, repo, permission: "push" })).data.map((u) => u.login).slice(0, 10);
+            } catch (error) {
+              core.warning(`Couldn't list collaborators: ${error.message}`);
+            }
+            await github.rest.issues.create({ owner, repo, title: "Live site is down", body, labels: ["site-down"], assignees });
+            core.setFailed("The live site is down.");
