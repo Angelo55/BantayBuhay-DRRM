@@ -1,8 +1,8 @@
 name: Dependency audit
 
 # Checks the packages the app ships with against published security advisories. It's separate
-# from CI on purpose: an advisory published today blocks pull requests until it's dealt with, but
-# never blocks a deploy of main, so an urgent fix can still go out.
+# from CI on purpose: an advisory published today shows as a failed check and should be fixed
+# soon, but it never blocks a deploy of main, so an urgent fix can still go out.
 on:
   pull_request:
     branches: [main]

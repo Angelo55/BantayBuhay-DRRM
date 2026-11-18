@@ -1,8 +1,7 @@
 name: CI
 
-# Every push to any branch, and every pull request into main, runs the same checks. "Web and API"
-# and "Detector" must pass before a pull request can merge (see CONTRIBUTING.md), and Deploy ships
-# main only after this workflow passes on it.
+# Every push to any branch, and every pull request into main, runs the same checks. Deploy
+# ships main only after this workflow passes on it (see CONTRIBUTING.md).
 on:
   push:
     branches: ["**"]

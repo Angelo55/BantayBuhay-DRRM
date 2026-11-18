@@ -104,7 +104,7 @@ Database changes are SQL files in [`supabase/migrations`](supabase/migrations), 
 
 ## Live site and operations
 
-The demo runs at <https://54-169-12-87.sslip.io>. Changes go through pull requests into `main`, and each merge deploys once CI passes; [CONTRIBUTING.md](CONTRIBUTING.md) explains the workflow. Deploys, rollback, the on-demand detector server, secrets and costs are in [the runbook](docs/RUNBOOK.md). [The before-and-after report](docs/migration/PHASE-2-REPORT.md) compares the old Docker setup with this one and lists the regression checks.
+The demo runs at <https://54-169-12-87.sslip.io>. Push to `main` (directly or through a pull request), and each push deploys once CI passes; [CONTRIBUTING.md](CONTRIBUTING.md) explains the workflow. Deploys, rollback, the on-demand detector server, secrets and costs are in [the runbook](docs/RUNBOOK.md). [The before-and-after report](docs/migration/PHASE-2-REPORT.md) compares the old Docker setup with this one and lists the regression checks.
 
 | Path | Purpose |
 | --- | --- |

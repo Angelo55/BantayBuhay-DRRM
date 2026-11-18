@@ -18,7 +18,7 @@ Nobody logs in to the servers with SSH: port 22 is closed, and every command goe
 
 ## Deploy
 
-Changes reach `main` through pull requests ([CONTRIBUTING.md](../CONTRIBUTING.md) has the rules). Every merge deploys automatically: **CI** runs on `main`, and when it passes, **Deploy** builds a release, uploads it to S3 and tells each running server to switch to it. GitHub signs in to AWS as the `bantaybuhay-github-deploy` role, so no AWS keys are stored in GitHub.
+Both developers push to `main` directly, or merge pull requests into it ([CONTRIBUTING.md](../CONTRIBUTING.md) has the rules). Every push deploys automatically: **CI** runs on `main`, and when it passes, **Deploy** builds a release, uploads it to S3 and tells each running server to switch to it. GitHub signs in to AWS as the `bantaybuhay-github-deploy` role, so no AWS keys are stored in GitHub.
 
 On each server, `infra/server/activate.sh` unpacks the release, writes the service's settings from Parameter Store, restarts the service and checks its health. If the health check fails, it **puts the previous release back** and the deploy fails in GitHub, so the site keeps running the old version.
 
@@ -33,7 +33,7 @@ Only `main` can deploy. The `production` environment accepts no other branch, an
 Automatic rollback covers a release that doesn't start. For a release that starts but behaves wrongly:
 
 1. **Server operations** > `rollback-web` puts the previous release back on the web server in about a minute, with the same health check as a deploy. Running it again switches forward again.
-2. Then revert the commit in a pull request (`git revert <commit>` on a new branch), so the next deploy doesn't bring the problem back. Each server keeps its five newest releases in `/opt/bantaybuhay/releases`.
+2. Then revert the commit on `main` (`git revert <commit>`, then push), so the next deploy doesn't bring the problem back. Each server keeps its five newest releases in `/opt/bantaybuhay/releases`.
 
 A database migration isn't undone by a code rollback. Write a new migration that reverses it.
 

@@ -1,78 +1,95 @@
 # Working on BantayBuhay together
 
-Two people push to this repository, and every merge into `main` goes live. This is how changes get from your laptop to the live site without anyone overwriting anyone else's work.
+Two people push to this repository, and every push to `main` that passes CI goes live. This is how changes get from your laptop to the live site without anyone overwriting anyone else's work.
 
 ## The short version
 
-1. Start a branch from the latest `main`.
-2. Commit and push it. CI checks every push.
-3. Open a pull request into `main` and turn on auto-merge.
-4. When CI passes and the other developer approves, GitHub merges it. Deploy then ships it to the live site, health-checks it, and rolls back by itself if the new version doesn't start.
+1. Get the latest `main`, make your change, commit.
+2. Push to `main`.
+3. CI checks it. If it passes, Deploy ships it to the live site about 10 minutes later, health-checks it, and rolls back by itself if the new version doesn't start.
 
-Nobody deploys by hand, logs in to the server, or holds AWS keys.
+Nobody deploys by hand, logs in to the server, or holds AWS keys. If CI fails, nothing is deployed: the live site keeps the last version that passed.
 
 ## Every change, step by step
 
-Get the latest `main` and start a branch named after the change:
+Start from the latest `main`. Pulling with rebase keeps your commits on top of the other developer's, without merge commits:
 
 ```bash
 git switch main
 ```
 
 ```bash
-git pull
+git pull --rebase
 ```
+
+Work and commit as usual. Before pushing, run the checks on your laptop, so a broken commit doesn't sit on `main`:
+
+```bash
+npm run test:local
+```
+
+Then pull again (the other developer may have pushed meanwhile) and push:
+
+```bash
+git pull --rebase
+```
+
+```bash
+git push
+```
+
+If `git push` is refused with "rejected (fetch first)" or "non-fast-forward", someone pushed before you. That's the rule that stops anyone overwriting the other's work. Run `git pull --rebase` and push again.
+
+After you push, watch the run on GitHub under **Actions**. GitHub emails you if CI fails on your commit.
+
+## Optional: a branch and a pull request
+
+For a bigger change, or one you'd like the other developer to look at first, use a branch instead:
 
 ```bash
 git switch -c fire-detector
 ```
 
-Work, commit as often as you like, and push. The first push sets up tracking:
-
 ```bash
 git push -u origin fire-detector
 ```
 
-Every push runs **CI**: lint, type checks, all tests against a throwaway database, a production build and a start-up check of the built API. The result shows next to the commit on GitHub, and GitHub emails you if it fails.
-
-When the change is ready, open a pull request and ask for it to merge itself once it's allowed:
+CI runs on every push to the branch. When it's ready, open a pull request and merge it yourself once the checks are green:
 
 ```bash
 gh pr create --fill
 ```
 
 ```bash
-gh pr merge --auto --squash
+gh pr merge --squash
 ```
 
-Or use the link `git push` prints, then **Enable auto-merge** on the pull request page.
+Nothing requires a review or a pull request; it's there when it helps.
 
-The other developer is asked to review automatically. Once CI and the dependency audit pass and they approve, GitHub squashes the branch into one commit on `main` and deletes the branch. About 10 minutes later the change is live.
-
-## What `main` requires
-
-These rules are set on GitHub, so they apply to everyone:
+## What GitHub enforces on `main`
 
 | Rule | Why |
 | --- | --- |
-| Changes reach `main` only through a pull request | Nobody overwrites anyone else's work; force-pushes and deleting `main` are blocked |
-| **Web and API**, **Detector** and **Dependency audit** must pass | Broken code never reaches the live site |
-| The branch must be up to date with `main` | What was tested is what gets merged. Click **Update branch** on the pull request if it falls behind |
-| One approval from the other developer | A second pair of eyes before anything goes live |
-| Review comments must be resolved | Nothing raised in review is forgotten |
-| A new push after approval needs a fresh approval | What was approved is what gets merged |
+| No force-pushes | Nobody can overwrite commits the other person already pushed |
+| `main` can't be deleted | The live site's source can't disappear |
+| Only `main` can deploy | The production environment refuses every other branch, and the AWS sign-in only works there |
+| Deploy waits for CI | A commit that fails lint, type checks, tests or the build is never deployed |
 
-The repository owner (Angelo55) can merge a pull request without waiting for the approval or the checks, for urgent fixes. Even then, **Deploy only ships a commit after CI passes on `main`**.
+The **Dependency audit** also runs on every push to `main` and weekly. A failure there doesn't block deploys, but fix it soon: Dependabot usually has a pull request for it.
 
 ## If two people change the same file
 
-GitHub says the pull request has conflicts. Bring `main` into your branch and fix them locally:
+`git pull --rebase` stops at the conflicting lines and marks them in the file. Keep the right version of each, then:
 
 ```bash
-git pull origin main
+git add <file>
 ```
 
-Git marks the conflicting lines in each file. Keep the right version of each, then commit and push. CI runs again.
+```bash
+git rebase --continue
+```
+
+Then push.
 
 ## When a deploy fails
 
@@ -81,11 +98,13 @@ The deploy rolls the server back by itself, so the live site keeps the previous 
 If a change deployed but behaves wrongly:
 
 - **Fast:** Actions > **Server operations** > Run workflow > `rollback-web` puts the previous release back on the web server.
-- **Then:** revert the change in a pull request (`git revert <commit>`), so the next deploy doesn't bring it back.
+- **Then:** undo the change on `main` (`git revert <commit>`, then push), so the next deploy doesn't bring it back.
+
+If the web server is stopped, deploys show as failed but nothing breaks. After starting it again, run Actions > **Deploy** > Run workflow on `main`.
 
 ## Database changes
 
-Schema changes are new files in `supabase/migrations`; never edit one that has already been applied. Supabase is shared by everyone's laptop and the live site, so apply a migration only when its pull request is approved, just before merging:
+Schema changes are new files in `supabase/migrations`; never edit one that has already been applied. Supabase is shared by everyone's laptop and the live site, so apply a migration just before pushing the code that needs it:
 
 ```bash
 npm run db:migrate -- --apply
