@@ -62,7 +62,7 @@ jobs:
           echo "id=$id" >> "$GITHUB_OUTPUT"
           ls -lh release.tgz
 
-      - uses: aws-actions/configure-aws-credentials@v5
+      - uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ env.ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
@@ -95,7 +95,7 @@ jobs:
     permissions:
       issues: write
     steps:
-      - uses: actions/github-script@v8
+      - uses: actions/github-script@v9
         env:
           RESULT: ${{ needs.deploy.result }}
           SHA: ${{ github.event.workflow_run.head_sha || github.sha }}

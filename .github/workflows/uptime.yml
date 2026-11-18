@@ -32,7 +32,7 @@ jobs:
           done
           echo "up=false" >> "$GITHUB_OUTPUT"
           echo "::error::The live API didn't report ready in three tries."
-      - uses: actions/github-script@v8
+      - uses: actions/github-script@v9
         env:
           UP: ${{ steps.probe.outputs.up }}
         with:
