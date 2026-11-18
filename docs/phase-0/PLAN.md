@@ -2,7 +2,9 @@
 
 **Event:** TALISIK Hackathon Challenge 2026, Track 2: Disaster Risk Reduction and Management (College), at National University Bacolod.
 
-**Status:** stack and schedule approved on 2026-11-07. The build has started locally.
+**Status, updated 2026-11-19:** the stack and schedule were approved on 2026-11-07. Foundation, core domain, map and real-time are done, and detection is partly done (person down only). The app is live at <https://54-169-12-87.sslip.io>, on Supabase and two AWS servers, with no Docker anywhere. Medical context (M5) and the demo clip (M6) aren't done. Since Nov 19, both developers push to `main` directly, and each push that passes CI deploys itself ([CONTRIBUTING.md](../../CONTRIBUTING.md)).
+
+This file records the plan as it stood and what has happened since. Team-track progress (proposal, interviews, deck) isn't tracked in this repository, so those rows show the plan, not the outcome.
 
 ## Hard dates
 
@@ -24,7 +26,7 @@ The guidelines give no registration link or proposal format, so get these from t
 
 **This is an idea-stage pitch competition, and working code isn't scored.** The guidelines say judges evaluate "the logic, validity, and regional practicality" and won't penalize teams for having no prototype. The earlier plan treated the build as the main deliverable, which no longer fits the scoring.
 
-| Criterion | Weight | What earns the points | Status |
+| Criterion | Weight | What earns the points | Status on Nov 7 |
 |---|---|---|---|
 | Problem-Solution Fit | **50%** | A verified NIR community problem, precise beneficiaries, root causes | **Largest gap.** The evidence so far is the CPSU incident in your paper and PSA population figures. No Kabankalan DRRM interview exists yet |
 | Viability and Feasibility | **30%** | Regional cost, accessibility, sustainability, piloting, compliance | Compliance design exists. Cost model and pilot plan don't |
@@ -50,8 +52,8 @@ The guidelines give no registration link or proposal format, so get these from t
 | 1 | What does BantayBuhay2025 implement, and what's its stack? | **Answered.** A webcam gesture and face recognition prototype with mock auth and data. See [AUDIT.md](AUDIT.md) |
 | 2 | Real CCTV feeds, or simulated? | **Simulated for now, confirmed by you.** No reconfigured CCTV is needed for the pitch or prototype: the guidelines don't require operational hardware, and recorded video can run through the same pipeline. The long-term system uses your own cameras (see [INFRASTRUCTURE.md](INFRASTRUCTURE.md)) |
 | 3 | Which incident types for the MVP? | **Confirmed by you:** fire and smoke, person down, flood, SOS gesture. First stretch: vehicular accident |
-| 4 | Can the current EC2 handle real-time inference? | **No, but a new CPU instance can.** The existing stopped `t3.medium`, named for the PESO project, is too small and isn't dedicated to BantayBuhay. A `c7i.2xlarge` met the target with no GPU: D-FINE-N handled 8 cameras at 2 fps with no dropped frames ([results](../benchmarks/cpu-latency-2026-11-07.md)). Accuracy isn't measured yet |
-| 5 | Do we have a domain? | **No.** Use `<elastic-ip>.sslip.io` for HTTPS for now |
+| 4 | Can the current EC2 handle real-time inference? | **No, but a new CPU instance can.** The existing stopped `t3.medium`, named for the PESO project, is too small and isn't dedicated to BantayBuhay. A `c7i.2xlarge` met the target with no GPU: D-FINE-N handled 8 cameras at 2 fps with no dropped frames ([results](../benchmarks/cpu-latency-2026-11-07.md)). **As built:** the detector runs on its own `c7i.xlarge`, started only for demos; the PESO instance was never touched. Accuracy isn't measured yet |
+| 5 | Do we have a domain? | **No.** The site uses `54-169-12-87.sslip.io`, with a Let's Encrypt certificate valid until 2027-02-05 that renews itself |
 | 6 | Judging criteria and deadline? | **Answered above** |
 
 ## Confirmed for now, open to change
@@ -67,12 +69,21 @@ The guidelines give no registration link or proposal format, so get these from t
 
 | # | Decision | Recommendation | Why it matters |
 |---|---|---|---|
-| 1 | **Merge M2 into `main`** | Merge, since M2 passes CI | Keeps later work on a current base |
-| 2 | **Face photos in git history** | Leave history intact while private. Purge before going public, which needs a force-push and your go-ahead. Ask Vincent to remove them from public upstream | Conflicts with "keep upstream history" |
-| 3 | **Repo visibility and license** | Stay private until Vincent confirms in writing | If judges need access, add them as collaborators |
-| 4 | **Merge the docs branch** | Merge after review | These documents are on `docs/phase-0`, not on `main` |
+| 1 | **Repo visibility and license.** The repository was found **public** on 2026-11-17 | Make it private again unless Vincent has given written permission, then choose a license | Upstream has no license, and its history holds a real person's face photos |
+| 2 | **Face photos in git history** | Before the repository stays public: purge them, which needs a force-push and your go-ahead. Ask Vincent to remove them from public upstream too | Conflicts with "keep upstream history" |
+| 3 | **Who reviews changes** | Direct pushes to `main` since Nov 19, no approval required. Turn approvals back on after the event if you want a second check before going live | A commit that passes the tests goes live without anyone looking at it |
+| 4 | **Dependabot's open updates** (#2 to #6) | Wait until after Nov 21. The TypeScript 7 and Node types 26 jumps need care | Major versions can break the build |
 
-**Settled on Nov 7:** the stack and schedule are approved, and the team reports it's registered, with the concept proposal still to submit. The working design links civilians through their own SOS, operator search and QR medical IDs, with no facial recognition; your answer read as acceptance, so tell me if you meant otherwise. The concept proposal draft is in Claude Docs for the team to edit.
+**Settled:**
+
+| Date | Decision |
+|---|---|
+| Nov 7 | Stack and schedule approved. Civilians are linked through their own SOS, operator search and QR medical IDs, with no facial recognition. The concept proposal draft went to Claude Docs for the team to edit |
+| Nov 7 | M2, M3, M4 and the design system merged into `main`; the `docs/phase-0` branch merged with them |
+| Nov 7 | Move to Supabase and drop Docker, locally and on the server: Postgres with PostGIS and Storage, while login, live updates and auditing stay in the API. No Redis, and the web app gets no Supabase key. Free plan, systemd on the server, the detector on its own server and opt-in on laptops, clean re-seed |
+| Nov 8 | Deploy: a small web server runs all the time, the detector server only on demand. Motion and GSAP for animation, an alert sound with a toggle, landing page reveals and subtle parallax |
+| Nov 17 | Team workflow: CI on every push and pull request, dependency audit, deploys locked to `main`, failure issues, rollback operation, uptime check |
+| Nov 19 | Direct pushes to `main` for both developers, without approval |
 
 ## Schedule
 
@@ -91,19 +102,21 @@ The earlier estimate of 13 to 15 working days for two full-time developers **doe
 
 ### Build track (supports feasibility)
 
-**Local first until Nov 11.** Docker on your laptop is free, and this avoids spending credit before finalists are announced. Deploy to AWS after that.
+The original plan was local first with Docker until Nov 11. On Nov 7 the setup moved to Supabase and native processes instead, and it deployed on Nov 8. [The before-and-after report](../migration/PHASE-2-REPORT.md) has the measurements.
 
-| Dates | Milestone | Done when |
-|---|---|---|
-| Nov 7 to 8 | **M0, M1 Foundation:** benchmark, monorepo, Compose, CI, health checks | Stack runs locally, CI passes, CPU or GPU chosen from measurements. **Done on Nov 7: CPU** |
-| Nov 8 to 10 | **M2 Core domain:** database, auth, four-role RBAC, seed data, status flow | All 20 seeded accounts log in, and tests prove role permissions. **Done on Nov 7,** merged to `main` |
-| Nov 10 to 12 | **M3 Map and real-time:** 32 barangays, cameras, markers, live alerts, acknowledge and assign | An incident appears live on another user's map. **Done on Nov 7:** it appeared within 1 second in a browser test |
-| Nov 11 to 14 | **M4 Detection,** in this order: fire and smoke, person down, SOS gesture, flood. Includes the verification queue | A recorded fire clip creates a located incident, and low-confidence detections go to the queue. **Partly done on Nov 7:** the full pipeline and review queue work, with person-down as the first detector. Fire, SOS and flood detectors and real footage are still needed |
-| Nov 12 | **Deploy:** EC2 hardening, HTTPS, CI/CD with rollback | The app runs on `sslip.io` over HTTPS |
-| Nov 13 to 15 | **M5 Medical context:** profiles, consent, encryption, access rule, audit log | Tests prove a responder sees data only while assigned to an active incident, and that every read is logged |
-| Nov 15 to 16 | **M6 Demo:** UI polish, measured results, demo video | 30 to 45 second clip recorded, in time for the Nov 17 deck |
+| Planned | Milestone | Done when | Status, Nov 19 |
+|---|---|---|---|
+| Nov 7 to 8 | **M0, M1 Foundation:** benchmark, monorepo, CI, health checks | Stack runs locally, CI passes, CPU or GPU chosen from measurements | **Done Nov 7.** CPU chosen. Docker Compose was later replaced by native processes |
+| Nov 8 to 10 | **M2 Core domain:** database, auth, four-role RBAC, seed data, status flow | All 20 seeded accounts log in, and tests prove role permissions | **Done Nov 7.** Row level security added Nov 7 on Supabase |
+| Nov 10 to 12 | **M3 Map and real-time:** 32 barangays, cameras, markers, live alerts, acknowledge and assign | An incident appears live on another user's map | **Done Nov 7.** Appeared within 1 second in a browser test |
+| Nov 11 to 14 | **M4 Detection,** in this order: fire and smoke, person down, SOS gesture, flood. Includes the verification queue | A recorded fire clip creates a located incident, and low-confidence detections go to the queue | **Partly done.** The pipeline and review queue work, with person down as the only detector. Fire and smoke, SOS and flood detectors and real footage are still needed |
+| Nov 12 | **Deploy:** server hardening, HTTPS, CI/CD with rollback | The app runs on `sslip.io` over HTTPS | **Done Nov 8.** Two servers, systemd and nginx, HTTPS, deploys through SSM with health checks and automatic rollback. Team workflow added Nov 17 |
+| Nov 13 to 15 | **M5 Medical context:** profiles, consent, encryption, access rule, audit log | Tests prove a responder sees data only while assigned to an active incident, and that every read is logged | **Not started** |
+| Nov 15 to 16 | **M6 Demo:** UI polish, measured results, demo video | 30 to 45 second clip recorded, in time for the Nov 17 deck | **Partly done.** Landing page, motion layer, measurements and link preview are done. The demo clip isn't recorded in this repository |
 
-**If time runs short, cut in this order:** flood, then QR scanning, then SOS polish, then CI/CD rollback. Fire, person down, the operator flow and medical access rules stay. These dates assume focused full-time work, so they'll need to move if the team is also in classes.
+Also built along the way: the public landing page, a style guide at `/styleguide`, an emergency alert banner with sound, and the operations runbook.
+
+**If time runs short, cut in this order:** flood, then QR scanning, then SOS polish. Fire, person down, the operator flow and medical access rules stay. These dates assumed focused full-time work.
 
 **Deferred until after Nov 21:** full WCAG audit, full research paper, OpenAPI polish, the ultrawide layout and zero-downtime tuning. Your brief still requires these; they just don't affect the pitch.
 
@@ -111,17 +124,21 @@ The earlier estimate of 13 to 15 working days for two full-time developers **doe
 
 Seed 2 Admin, 5 DRRM Operator, 3 Responder and 10 Civilian accounts, all fictional. The seed script generates random passwords and writes them to a file that `.gitignore` already covers. No real person's details or photos are used.
 
-### Proposed repository layout
+### Repository layout, as built
 
 ```text
-apps/web/            React operations console and civilian app
-apps/api/            Fastify API and notification worker
-services/inference/  FastAPI inference service
-packages/shared/     Shared types and Zod schemas
-infra/               Compose, Nginx, deploy scripts
-docs/                Paper, runbook, OpenAPI reference
-legacy/              Upstream prototype, moved here for reference
+apps/web/            React landing page, operations console and civilian view
+apps/api/            Fastify API, auth, audit, live updates
+services/inference/  FastAPI detector
+packages/shared/     Types and constants shared by web and API
+supabase/migrations/ Database schema, row level security, storage bucket
+scripts/             Setup, dev, stop, test database, accounts and secrets helpers
+infra/               Nginx, systemd units, server scripts, AWS provisioning
+docs/                Runbook, teammate setup, reports, design, this plan
+legacy/              Upstream prototype, for reference only
 ```
+
+The notification worker in the original layout wasn't needed: alerts go out over Socket.IO from the API.
 
 ## Stretch goals
 
@@ -142,7 +159,7 @@ Before any real deployment:
 
 - Pre-incubation or pilot partner, which the rubric specifically rewards planning for
 - Data Protection Officer, privacy impact assessment and legal review
-- Multi-AZ hosting and a managed database
+- Multi-AZ hosting, and a paid database plan with backups (Supabase's free plan pauses idle projects)
 - Field evaluation on footage from your own cameras
 - Operator training and a defined manual fallback
 - Independent security testing
@@ -158,5 +175,9 @@ Before any real deployment:
 | Going over 5 minutes | Medium | Timed rehearsals under 4:50 |
 | Hard Q&A on privacy or surveillance | Medium | No facial recognition, and a prepared RA 10173 answer |
 | Model underperforms on a class | Medium | Fire and person down first; report weak results honestly |
-| AWS credit burned by idle instances | Medium | Local first, Budget alerts, stop instances after each session |
+| AWS credit burned by idle instances | Medium | Budget alert at US$50. The detector server runs only for demos; the web server can be stopped too ([runbook costs](../RUNBOOK.md#costs)) |
+| Supabase pauses an idle free project | Medium: the live site goes down | Happened Nov 17. The uptime check now queries the database every three hours |
+| Live site down during the pitch | Medium | Use the recorded clip. Check the site the morning before, and start the server and restore Supabase if needed |
+| Public repository exposes face photos | High | See decision 1 |
+| Unreviewed commit goes live | Medium | CI must pass before any deploy; `rollback-web` restores the previous release in about a minute |
 | Medical access bug | High | One policy function with tests written first |

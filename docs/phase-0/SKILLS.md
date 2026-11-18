@@ -4,6 +4,8 @@
 
 **Decision:** I installed a curated set of 12 skills rather than everything. Installing all of them would add about 90 skills, including competing TDD and review processes and an always-on hook.
 
+**Update, 2026-11-19:** the project now has its own skill, [`bantaybuhay`](../../.claude/skills/bantaybuhay/SKILL.md), inside this repository at `.claude/skills/bantaybuhay/`. It describes the system as built: layout, commands, rules, data and security model, the deploy flow and the servers. Because it's in the repository, anyone who opens this folder in Claude Code gets it, including your co-developer. The 12 skills below are still installed outside the repository, unchanged.
+
 ## Summary
 
 | Repo | What it does | Project phase | Install status | Conflicts |
@@ -21,6 +23,7 @@
 
 | Skill | Source | Used for |
 |---|---|---|
+| `bantaybuhay` | This project, in the repository | The system as built: read it before working in any part of the app |
 | `tdd` | mattpocock | Test-first work on RBAC, medical access rules and the status flow |
 | `domain-modeling` | mattpocock | Glossary and architecture decision records |
 | `to-spec`, `to-tickets` | mattpocock | Turning the approved plan into tickets |
@@ -53,3 +56,5 @@ These rules are recorded in `C:\BantayBuhay\CLAUDE.md`.
 ## Adding or removing skills
 
 The new skills may not appear until a new session starts; I confirmed the files are in place, but didn't test loading them. To remove one, delete its folder from `C:\BantayBuhay\.claude\skills\`. To add more, copy a skill folder there from `toolkit\`.
+
+The `bantaybuhay` skill is different: it's part of the repository, so change it in `.claude/skills/bantaybuhay/SKILL.md` and commit it like any other file. Update it whenever the system changes in a way it describes: a new service, command, rule, server or deploy step.

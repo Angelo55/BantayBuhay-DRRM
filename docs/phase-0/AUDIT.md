@@ -4,13 +4,15 @@
 
 **Verdict:** BantayBuhay2025 is a UI prototype for webcam-based gesture and face recognition, not a DRRM platform. Rebuild the backend, data, map and detection layers. Keep the UI component library, the SOS gesture logic and the research material.
 
+**Update, 2026-11-19:** this audit describes the 2025 prototype, which hasn't changed; the prototype stays in `legacy/` for reference. The rebuild followed the verdict, except where the last column of "Reuse or rebuild" says otherwise. The open items below have moved on since Nov 7.
+
 ## Needs your attention first
 
-| # | Finding | Status | What's needed |
+| # | Finding | Status, Nov 19 | What's needed |
 |---|---|---|---|
-| 1 | **A real person's face photos are in the repo.** Four webcam images sit in `registered_faces/responder_juan/`. | Removed from the current tree of the new repo. They remain in its preserved history, and **remain publicly visible in the upstream repo**. | Ask Vincent to purge them upstream. Decide whether to rewrite history here before this repo ever goes public (see [PLAN.md](PLAN.md)). |
-| 2 | **Upstream has no license**, so reuse rights aren't granted by default. | The new repo is private and grants no license. | Get Vincent's written permission and choose a license before going public. |
-| 3 | **The name `Angelo55/BantayBuhay` was already taken** by your private research repo. | Left untouched. The baseline is in [Angelo55/BantayBuhay-DRRM](https://github.com/Angelo55/BantayBuhay-DRRM). | Tell me if you'd prefer another name. |
+| 1 | **A real person's face photos are in the repo.** Four webcam images sit in `registered_faces/responder_juan/`. | Removed from the current tree of the new repo. They remain in its preserved history, and **remain publicly visible in the upstream repo**. **This repository was found public on Nov 17**, so they're publicly visible here too. | Make the repository private again, or purge the photos from history (a force-push, needing your go-ahead). Ask Vincent to purge them upstream. See [PLAN.md](PLAN.md), decisions 1 and 2. |
+| 2 | **Upstream has no license**, so reuse rights aren't granted by default. | Still no license. The repository was private until at least Nov 8 and public by Nov 17. | Get Vincent's written permission and choose a license, or make it private again. Vincent (`Quimanjan`) is now a collaborator with write access. |
+| 3 | **The name `Angelo55/BantayBuhay` was already taken** by your private research repo. | Settled: the app lives in [Angelo55/BantayBuhay-DRRM](https://github.com/Angelo55/BantayBuhay-DRRM), and the research repo is unchanged. | Nothing. |
 
 The history scan found no real API keys, private keys, tokens or committed `.env` files. It did find mock passwords in source (see "Security" below); they aren't real credentials.
 
@@ -75,20 +77,20 @@ These are blockers for any system holding medical data:
 
 ## Reuse or rebuild
 
-| Item | Decision | Why |
-|---|---|---|
-| `components/ui/` (57 shadcn/ui components) | **Reuse** | Radix-based and framework-independent |
-| Dashboard layout, sidebar, stat cards | **Adapt** | A starting point; needs an operations-focused redesign |
-| SOS gesture heuristic (`is_sos_signal`) | **Adapt** | Working logic and a good demo, but needs a measured confidence |
-| `types/index.ts` | **Adapt** | Partial; roles and statuses change |
-| Research paper, ERD, use-case diagram | **Reuse** in the paper | Your own repo, with the same problem framing |
-| Next.js route handlers, mock data | **Rebuild** | All mock |
-| Auth, RBAC, audit | **Rebuild** | Unsafe by design |
-| Database schema | **Rebuild** | Lacks spatial data, civilians, consent and encryption |
-| Map | **Rebuild** | An iframe can't show live overlays |
-| Flask vision servers | **Rebuild** | Webcam-oriented, unauthenticated |
-| Face registration and recognition | **Drop from MVP** | Decision 1 in [PLAN.md](PLAN.md) |
-| Compose file, Dockerfile | **Rebuild** | Broken and exposes the database |
+| Item | Decision | Why | What happened |
+|---|---|---|---|
+| `components/ui/` (57 shadcn/ui components) | **Reuse** | Radix-based and framework-independent | Not reused. The new design contract (`DESIGN.md`) needed its own component library, in `apps/web/src/ui` |
+| Dashboard layout, sidebar, stat cards | **Adapt** | A starting point; needs an operations-focused redesign | Redesigned from scratch as the operations console |
+| SOS gesture heuristic (`is_sos_signal`) | **Adapt** | Working logic and a good demo, but needs a measured confidence | Not ported yet. SOS detection is still to do |
+| `types/index.ts` | **Adapt** | Partial; roles and statuses change | Replaced by `packages/shared` |
+| Research paper, ERD, use-case diagram | **Reuse** in the paper | Your own repo, with the same problem framing | Unchanged in the research repo |
+| Next.js route handlers, mock data | **Rebuild** | All mock | Rebuilt as the Fastify API |
+| Auth, RBAC, audit | **Rebuild** | Unsafe by design | Rebuilt: Argon2id, sessions, four roles, row level security, audit log |
+| Database schema | **Rebuild** | Lacks spatial data, civilians, consent and encryption | Rebuilt on Supabase with PostGIS. Consent and encryption are still to do |
+| Map | **Rebuild** | An iframe can't show live overlays | Rebuilt with MapLibre and the 32 barangays |
+| Flask vision servers | **Rebuild** | Webcam-oriented, unauthenticated | Rebuilt as the FastAPI detector, behind a token |
+| Face registration and recognition | **Drop from MVP** | Decision 1 in [PLAN.md](PLAN.md) | Dropped. Civilians are linked through SOS, operator search and QR medical IDs instead |
+| Compose file, Dockerfile | **Rebuild** | Broken and exposes the database | Rebuilt, then removed on Nov 7: everything runs natively and on systemd |
 
 Next.js coupling is small: only 13 `app/` files and 1 component import from `next/`.
 
@@ -97,6 +99,6 @@ Next.js coupling is small: only 13 `app/` files and 1 component import from `nex
 `Angelo55/BantayBuhay` holds the paper by Quimanjan, Deguitos and Lacsao, an ERD, a use-case diagram and a three-table MySQL schema. Two things carry over:
 
 - **Scope has grown.** The paper covers a campus: students, faculty and security officers, with webcams, gestures and falls. This brief covers citywide DRRM with CCTV and more hazard types.
-- **Identification has changed.** The paper retrieves medical history through facial recognition. The brief doesn't say how a civilian is linked to an incident, which is the largest open design question.
+- **Identification has changed.** The paper retrieves medical history through facial recognition. The brief doesn't say how a civilian is linked to an incident, which is the largest open design question. *Settled Nov 7:* civilians are linked through their own SOS, operator search and QR medical IDs, with no facial recognition.
 
 The paper's references also need cleaning up before reuse: at least one reference number is used twice.

@@ -1,76 +1,79 @@
-# Infrastructure proposal
+# Infrastructure
 
-**Status: approved on 2026-11-07.** Nothing here has been provisioned yet. Region: Singapore (`ap-southeast-1`). Budget: $149 in AWS credit. Domain: none yet.
+**Status, updated 2026-11-19:** proposed and approved on 2026-11-07, then changed on Nov 7 to Supabase with no Docker, and deployed on Nov 8. The first sections describe what runs today. The options and trade-offs further down are the original analysis, each with a note on what was chosen. Region: Singapore (`ap-southeast-1`). Budget: US$149 in AWS credit. Domain: none; the site is <https://54-169-12-87.sslip.io>.
 
-## Recommended stack
+Day-to-day operation is in the [runbook](../RUNBOOK.md).
 
-| Area | Recommendation | Main reason |
+## As built
+
+| Area | In use | Proposed on Nov 7 |
 |---|---|---|
-| Frontend | React, Vite, TypeScript, Tailwind, shadcn/ui, Framer Motion | A static app works directly with a PWA or Capacitor later |
-| Map | MapLibre GL with a self-hosted Negros map extract | Live vector overlays, no API key, works without a third-party tile service |
-| API | Fastify (TypeScript) with Zod | OpenAPI generated from the validation schemas |
-| AI service | Python FastAPI with ONNX Runtime | Same service runs on CPU or GPU |
-| Detector | D-FINE (Apache 2.0), sized after accuracy testing. D-FINE-N was fastest on CPU | Avoids AGPL obligations on your application |
-| Database | PostgreSQL with PostGIS, Redis | Barangay lookups and nearest-responder queries built in |
-| Real-time | Socket.IO, with PostgreSQL as the source of truth | Rooms and delivery acknowledgements for critical alerts |
-| Video | MediaMTX gateway | Simulated and real cameras use the same pipeline |
-| Hosting | One EC2 instance, Docker Compose, Nginx, Let's Encrypt | Lowest cost and fastest to run |
-| Compute | CPU first (`c7i.2xlarge`), GPU only if the benchmark fails | Avoids paying for a GPU you may not need |
-| Deploy | GitHub-hosted runners and AWS SSM | No inbound SSH needed |
+| Frontend | React 19, Vite 8, TypeScript, Tailwind 4, Motion; GSAP on the landing page only | React, Vite, TypeScript, Tailwind, shadcn/ui, Framer Motion |
+| Map | MapLibre GL with the OpenFreeMap street basemap; barangay polygons from the database | MapLibre GL with a self-hosted Negros map extract |
+| API | Fastify 5 with Zod, `pg`, Socket.IO, Argon2id from Node's crypto | Same, plus a BullMQ notification worker |
+| Detector | Python 3.12 FastAPI, ONNX Runtime, D-FINE-N (Apache 2.0); person down only so far | Same |
+| Database | Supabase Postgres 17 with PostGIS 3.3, free plan, row level security on every table | PostgreSQL with PostGIS in Docker, plus Redis |
+| Snapshots | Private Supabase Storage bucket, served only through the API | Private S3 bucket with signed URLs, KMS |
+| Real-time | Socket.IO with its in-memory adapter (one API process); the database stays the source of truth | Socket.IO over Redis |
+| Video | The detector reads clips (`media/sim/<camera>.mp4`) or an RTSP base URL directly; a test pattern when a clip is missing | MediaMTX gateway |
+| Hosting | Two EC2 servers on Ubuntu 24.04, systemd services, nginx 1.24, Let's Encrypt | One EC2 instance with Docker Compose |
+| Compute | Web: `t3.medium`. Detector: `c7i.xlarge`, started only for demos | `c7i.2xlarge` for everything |
+| Deploy | GitHub-hosted runners, GitHub OIDC to AWS, releases in S3, SSM runs the activation | Hosted runners and SSM |
 
-## Architecture
+### Why it changed
+
+- **Supabase instead of Postgres in Docker.** Docker's VM held 3.7 GB of the laptop's 7.7 GB, and a managed database takes installing, patching and running Postgres off the server. The API keeps auth, auditing and live updates; the web app gets no Supabase key.
+- **No Redis.** One API process needs no shared adapter, and alerts go out over Socket.IO directly, so the notification worker wasn't needed.
+- **No MediaMTX.** The detector can read clips and RTSP itself, which saved a process and about 170 MB.
+- **Two smaller servers instead of one large one.** The web server runs all the time for US$0.053 an hour. The detector server costs US$0.206 an hour, so it runs only for demos.
+
+The [Phase 1 audit](../migration/PHASE-1-AUDIT.md) and the [before-and-after report](../migration/PHASE-2-REPORT.md) have the measurements behind these choices.
+
+### Architecture
 
 ```mermaid
 flowchart LR
   subgraph Sources["Video sources"]
-    SIM["Simulated cameras<br/>ffmpeg looping recorded clips"]
-    CAM["Real CCTV, later<br/>RTSP or HLS"]
+    SIM["Simulated cameras<br/>looping clips or a test pattern"]
+    CAM["Real cameras, later<br/>RTSP"]
   end
 
-  subgraph Host["AWS EC2: Docker Compose private network"]
-    NGINX["Nginx<br/>TLS, rate limits"]
-    WEB["Web app<br/>React static build"]
-    API["API<br/>Fastify, RBAC, audit"]
-    WORKER["Notification worker<br/>BullMQ"]
-    MTX["MediaMTX<br/>stream gateway"]
-    INF["Inference service<br/>FastAPI, ONNX Runtime"]
-    REDIS[("Redis<br/>pub/sub, queues")]
-    PG[("PostgreSQL + PostGIS<br/>encrypted medical fields")]
+  subgraph Web["Web server, t3.medium, always on"]
+    NGINX["nginx<br/>TLS, security headers, rate limits"]
+    WEB["Web app<br/>static build"]
+    API["API<br/>Fastify, auth, audit, Socket.IO"]
   end
 
-  subgraph AWS["AWS managed services"]
-    S3[("S3<br/>private snapshots and clips")]
-    KMS["KMS<br/>data key protection"]
+  subgraph Det["Detector server, c7i.xlarge, on demand"]
+    INF["Detector<br/>FastAPI, ONNX Runtime"]
   end
 
-  subgraph Clients["Users"]
-    OPS["DRRM operators and admins"]
+  subgraph Supa["Supabase, Singapore"]
+    PG[("Postgres + PostGIS<br/>row level security")]
+    ST[("Storage<br/>private snapshots")]
+  end
+
+  subgraph Users["Users"]
+    OPS["Operators and admins"]
     RESP["Responders"]
     CIV["Civilians"]
   end
 
-  SMS["SMS or email provider<br/>stretch goal"]
-
-  SIM --> MTX
-  CAM --> MTX
-  MTX -- "frames at 1 to 5 fps" --> INF
-  INF -- "signed detection + snapshot" --> API
-  INF -- "snapshot" --> S3
+  SIM --> INF
+  CAM --> INF
+  INF -- "detections and snapshots,<br/>private network, detector token" --> API
   API --> PG
-  API <--> REDIS
-  API --> KMS
-  API -- "signed URLs" --> S3
-  REDIS --> WORKER
-  WORKER --> SMS
+  API --> ST
   OPS --> NGINX
   RESP --> NGINX
   CIV --> NGINX
   NGINX --> WEB
-  NGINX -- "REST + Socket.IO" --> API
-  NGINX -- "WebRTC or LL-HLS, authenticated" --> MTX
+  NGINX -- "REST and Socket.IO" --> API
 ```
 
-**Detection flow**
+From the internet, nginx refuses `POST /api/detections`, `/api/internal/*` and camera heartbeats. The detector reaches the API on port 3000, which only the detector's security group may open.
+
+### Detection flow
 
 1. A detection counts only if it persists across several frames (for example, 3 of 5). This cuts one-frame false positives.
 2. Above the threshold, it becomes an Incident in `Detected` and alerts operators. Below the threshold, it goes to the verification queue.
@@ -93,6 +96,10 @@ The system uses **cameras you own or buy, not existing public or LGU CCTV**. The
 This also supports the 30% Viability criterion, because owning hardware makes the per-site cost concrete.
 
 ## Data model
+
+This is the target model. **Built so far** (in `supabase/migrations`): `users`, `sessions`, `responder_profiles`, `civilian_profiles`, `barangays`, `cameras`, `detections`, `incidents` (with acknowledgement columns), `incident_events`, `assignments` and `audit_logs`. Incidents also have a `dismissed` status beside the five below.
+
+**Not built yet** (milestone M5 and later): `medical_records`, `emergency_contacts`, `consents`, `medical_access_logs`, `incident_civilians`, `responder_positions` and `notifications`. Medical fields will need their encryption key from AWS KMS or Supabase Vault; that choice is still open.
 
 ```mermaid
 erDiagram
@@ -259,9 +266,9 @@ erDiagram
   }
 ```
 
-## Options and trade-offs
+## Options and trade-offs (original analysis, Nov 7)
 
-Build speed assumes a small team under a hackathon deadline. Cost is the running cost of the software itself; hosting is covered under "Cloud".
+Kept as the record of why each part was chosen. Each section ends with what was actually used. Build speed assumes a small team under a hackathon deadline. Cost is the running cost of the software itself; hosting is covered under "Cloud".
 
 ### Frontend
 
@@ -271,6 +278,8 @@ Build speed assumes a small team under a hackathon deadline. Cost is the running
 | Keep Next.js, upgraded | Free | Fast first load | Fastest for existing screens | Good | SSR adds little behind a login. Capacitor is harder with server routes |
 
 **Motion:** Framer Motion only. GSAP isn't needed, because operations UI needs state transitions rather than choreographed sequences. All motion respects `prefers-reduced-motion`.
+
+**Used:** React, Vite and TypeScript, with the project's own component library in `apps/web/src/ui` instead of shadcn/ui. Motion (the successor to Framer Motion) runs the console. GSAP was added on Nov 8 for the public landing page's scroll reveals only, loaded lazily and skipped under reduced motion. See `DESIGN.md`.
 
 ### Map
 
@@ -282,6 +291,8 @@ Build speed assumes a small team under a hackathon deadline. Cost is the running
 
 **Boundary data is verified.** [`faeldon/philippines-json-maps`](https://github.com/faeldon/philippines-json-maps) has a Kabankalan file (`bgysubmuns-municity-1804515000`) with exactly 32 barangay polygons, matching PSA's count. Attribution to NAMRIA and PSA through OCHA's COD-AB is required. Note that PSGC moved Kabankalan to code `1804515000` under the Negros Island Region, while older sources use `064515000`.
 
+**Used:** MapLibre GL. The street basemap comes from OpenFreeMap (no key; allowed in the site's CSP) instead of self-hosted PMTiles, and the 32 barangay polygons are loaded into the database by a migration.
+
 ### Backend API
 
 | Option | Build speed | Scalability | Notes |
@@ -289,6 +300,8 @@ Build speed assumes a small team under a hackathon deadline. Cost is the running
 | **Fastify + Zod (recommended)** | Fast | Good | Schemas produce validation and the OpenAPI reference, and rate limiting is a plugin |
 | Express | Fast | Good | Most familiar, but OpenAPI and validation are extra wiring |
 | NestJS | Slower | Very good | Strong structure, but heavy for a hackathon |
+
+**Used:** Fastify 5 with Zod. The OpenAPI document comes from `@fastify/swagger`.
 
 ### AI and computer vision
 
@@ -320,6 +333,8 @@ Published latency figures come from the [RF-DETR benchmark table](https://github
 
 **Evaluation:** report precision, recall, latency and false alarms per camera-hour by class, on a held-out set. Public-dataset results don't prove performance on Kabankalan cameras, and the paper will say so.
 
+**Used, as of Nov 19:** D-FINE-N trained on COCO, for person down only (a person detected lying down across several frames). Fire and smoke, flood and SOS aren't built, and no accuracy has been measured.
+
 ### Where inference runs
 
 Prices are AWS on-demand Linux in Singapore (`ap-southeast-1`), from AWS's public price file on 2026-11-07. Monthly figures use 730 hours.
@@ -333,6 +348,8 @@ Prices are AWS on-demand Linux in Singapore (`ap-southeast-1`), from AWS's publi
 **How to decide:** run a one-hour benchmark on `c7i.2xlarge`, for about $0.41 plus a little storage. You've approved up to $5, which is about 12 hours. The target is 4 simulated cameras at 2 fps each, or 8 inferences per second. Move to Option B only if that fails.
 
 **Result, 2026-11-07: Option A passed.** D-FINE-N handled 8 cameras at 2 fps on CPU with no dropped frames and a p95 of 234 ms. See the [full results and their limits](../benchmarks/cpu-latency-2026-11-07.md).
+
+**Used:** a smaller `c7i.xlarge` (4 vCPU, US$0.206 an hour) for the six simulated cameras at 2 fps, started only for demos, beside a `t3.medium` web server that runs the app. Together they use 6 of the 8 standard vCPUs. The GPU quota request wasn't needed. On a laptop, one camera at 1 fps uses about 0.8 of a core. Current monthly costs are in the [runbook](../RUNBOOK.md#costs); the estimate table below is the Nov 7 plan.
 
 **Account limits, checked 2026-11-07:**
 
@@ -367,6 +384,8 @@ AWS reports that `g5.xlarge` and `g6.xlarge` aren't offered in Singapore, so `g4
 
 **Redis:** recommended for Socket.IO fan-out and notification queues. PostgreSQL `LISTEN/NOTIFY` could replace it, but BullMQ retries are worth keeping for alerts.
 
+**Used:** PostgreSQL with PostGIS, on Supabase's free plan. Redis was dropped on Nov 7: one API process uses Socket.IO's built-in adapter, and there's no notification queue yet. If SMS or email alerts are added, a queue comes back with them.
+
 ### Real-time
 
 | Option | Latency | Build speed | Notes |
@@ -375,6 +394,8 @@ AWS reports that `g5.xlarge` and `g6.xlarge` aren't offered in Singapore, so `g4
 | SSE | Low | Fast | Simple and proxy-friendly, but one-way, so positions need separate requests |
 
 With either choice, clients refetch state after reconnecting. The database stays authoritative, so a dropped connection can't lose an incident.
+
+**Used:** Socket.IO, as recommended.
 
 ### Cloud services
 
@@ -385,11 +406,15 @@ With either choice, clients refetch state after reconnecting. The database stays
 | RDS or self-hosted | **Self-hosted in Docker for the hackathon**, with encrypted backups to S3. **Move to RDS before real data** | RDS adds cost now, but automated backups and failover are worth it for real medical records |
 | Keys | AWS KMS for wrapping data keys | Keys stay out of the app host, at low cost |
 
+**Used:** Singapore for everything. Snapshots are in a private Supabase Storage bucket (JPEG, up to 512 KB each), read only through the API's audited endpoint, instead of S3. The database is managed by Supabase rather than self-hosted. KMS isn't used yet, because medical records aren't built. Releases go to a private, encrypted S3 bucket that deletes them after 30 days, and secrets live in SSM Parameter Store. Before real data, the free Supabase plan should become a paid one with backups.
+
 ### Containers
 
 Docker Compose, Nginx and Let's Encrypt, as you suggested. Only Nginx publishes ports. PostgreSQL, Redis, MediaMTX's internal ports and inference stay on private Docker networks.
 
-**Known limit:** one EC2 instance is a single point of failure. That's fine for a demo, but not for real emergency operations, which would need multi-AZ redundancy.
+**Used:** no containers. Docker was removed on Nov 7, on the laptop and the server. The API and detector run as systemd services under an unprivileged `bantaybuhay` user, with `NoNewPrivileges`, `ProtectSystem=strict`, `ProtectHome` and `PrivateTmp`. Nginx and Let's Encrypt run on the web server as planned. The security groups do the job the private Docker networks would have done: only 80 and 443 are open to the internet, and the API's port 3000 accepts only the detector server.
+
+**Known limit:** one web server is a single point of failure. That's fine for a demo, but not for real emergency operations, which would need multi-AZ redundancy.
 
 ## Security and privacy design
 
@@ -405,6 +430,9 @@ Docker Compose, Nginx and Let's Encrypt, as you suggested. Only Nginx publishes 
 | Sessions | Short-lived tokens in `HttpOnly` cookies, Argon2id password hashing, MFA for admins and operators as a stretch goal |
 | API protection | Rate limits at Nginx and API, Zod validation on every route, parameterized queries only |
 | Media | Footage retention limit, signed URLs, optional face masking in snapshots |
+| Database access | *Added Nov 7.* Every signed-in request runs as a restricted database role with row level security, so a route that forgets a filter still can't return other people's data |
+
+**Built so far:** sessions (opaque tokens in `HttpOnly` cookies, hashed in the database, 12 hours, login rate-limited), Argon2id, the four roles, row level security with 20 policies and tests, rate limits at nginx (20 requests a second per visitor) and in the API, Zod on every route, parameterized queries, the audit log, security headers and a strict CSP, HSTS. Snapshots go through the API rather than signed URLs. **Not built:** consent records, field-level encryption, the medical access rule and its log, footage retention limits, MFA and face masking.
 
 **Clinical safety in the UI:** medical data is self-reported, so the screen says so and shows its last-updated date. An empty list reads "No information on file", never "No known allergies", because missing data must not look like clearance to give a drug.
 
@@ -431,7 +459,17 @@ Docker Compose, Nginx and Let's Encrypt, as you suggested. Only Nginx publishes 
 
 Stateful services and inference aren't swapped, so an inference update briefly pauses detection. That makes this near-zero downtime, not zero. Secrets live only in GitHub Secrets and SSM Parameter Store.
 
-For server setup, see [EC2-HARDENING.md](EC2-HARDENING.md).
+**Used:** hosted runners and SSM, with GitHub OIDC and no stored AWS keys. The pipeline differs from the plan above:
+
+1. **CI**, on every push and pull request: lint, type checks, all tests against a Postgres service, the build, and a start-up check of the built API. The detector gets `ruff` and `pytest`.
+2. **Dependency audit**, on pull requests, `main` and weekly. It never blocks a deploy. Dependabot opens weekly update pull requests.
+3. **Deploy**, after CI passes on a push to `main`: build one release archive, upload it to S3, then run `infra/server/activate.sh` on each running server through SSM. Activation writes the service's settings from Parameter Store, restarts it and health-checks it. If the check fails, it restores the previous release. There are no container images and no registry.
+4. **Migrations** aren't part of the deploy. They're applied to Supabase by hand with `npm run db:migrate -- --apply`, before the code that needs them.
+5. **Failure reporting:** a failed deploy opens an issue assigned to the team. An uptime check every three hours opens one if the live site is down.
+
+It's a release switch with automatic rollback, not blue/green: the API restarts in a few seconds. Deploys run only from `main`, because the `production` environment refuses every other branch. Secrets live in SSM Parameter Store, and GitHub holds none.
+
+For how the servers are set up, see [EC2-HARDENING.md](EC2-HARDENING.md).
 
 ## Sources
 
