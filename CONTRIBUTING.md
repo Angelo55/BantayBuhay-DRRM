@@ -114,7 +114,7 @@ The [runbook](docs/RUNBOOK.md#database-changes) has the details.
 
 ## Setting up your laptop
 
-Follow [Run it locally](README.md#run-it-locally) in the README. You need your own `apps/api/.env`. Get the Supabase database password and storage key from the repository owner through a private channel, never in an issue, a commit or a group chat. Generate your own detector token. CI needs none of these: it uses its own throwaway database.
+[docs/TEAMMATE-SETUP.md](docs/TEAMMATE-SETUP.md) walks through it from scratch, including what the owner sends you. In short: follow [Run it locally](README.md#run-it-locally) in the README. You need your own `apps/api/.env`. Get the Supabase database password and storage key from the repository owner through a private channel, never in an issue, a commit or a group chat. Generate your own detector token. CI needs none of these: it uses its own throwaway database.
 
 ## Rules that never bend
 
