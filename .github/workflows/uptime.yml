@@ -47,7 +47,11 @@ jobs:
               }
               return;
             }
-            if (open.length) return; // Already reported; don't email everyone every three hours.
+            if (open.length) {
+              // Already reported, so no new issue or email, but the run still shows red.
+              core.setFailed(`The live site is still down (issue #${open[0].number}).`);
+              return;
+            }
             const body = [
               `https://54-169-12-87.sslip.io/api/readyz didn't answer "ready": ${run}`,
               "",
